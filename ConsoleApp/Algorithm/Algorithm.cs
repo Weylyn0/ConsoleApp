@@ -3,6 +3,21 @@ using System.Collections.Generic;
 
 namespace ConsoleApp.Algorithm;
 
+public class Integer
+{
+    /// <summary>
+    /// Swaps the <see cref="int"/> values using XOR (^)
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="y"></param>
+    public static void Swap(ref int x, ref int y)
+    {
+        x ^= y;
+        y ^= x;
+        x ^= y;
+    }
+}
+
 /// <summary>
 /// Includes function with recursion
 /// </summary>
