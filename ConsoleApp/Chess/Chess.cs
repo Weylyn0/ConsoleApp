@@ -339,7 +339,7 @@ public class Board
     /// Calculates legal moves
     /// </summary>
     /// <returns><see cref="List{Move}"/></returns>
-    private List<Move> CalculateLegalMoves()
+    public List<Move> CalculateLegalMoves()
     {
         var moves = new List<Move>();
         for (int squareIndex = 0; squareIndex < 64; squareIndex++)
@@ -350,7 +350,7 @@ public class Board
             }
         }
         
-        if (IsUnderAttack(KingSquare, ColourToMove, out List<int> attackers))
+        if ((KingSquare > -1) && IsUnderAttack(KingSquare, ColourToMove, out List<int> attackers))
         {
             if (attackers.Count > 1)
             {
@@ -364,12 +364,12 @@ public class Board
                     if (Piece.IsSlidingPiece(Squares[attackers[i]]))
                     {
                         var squares = SquaresInLine(KingSquare, attackers[i]);
-                        moves.RemoveAll(move => !((move.TargetIndex == attackers[i]) || squares.Contains(move.TargetIndex)));
+                        moves.RemoveAll(move => !((move.Index == KingSquare) || (move.TargetIndex == attackers[i]) || squares.Contains(move.TargetIndex)));
                     }
 
                     else
                     {
-                        moves.RemoveAll(move => !(move.TargetIndex == attackers[i]));
+                        moves.RemoveAll(move => !((move.Index == KingSquare) || (move.TargetIndex == attackers[i])));
                     }
                 }
             }
@@ -438,7 +438,7 @@ public class Board
                 if (Piece.IsColour(Squares[targetSquare], ColourToMove))
                     break;
 
-                moves.Add(new Move(squareIndex, targetSquare));
+                moves.Add(new Move(squareIndex, targetSquare, MoveFlags.None, Squares[squareIndex], Squares[targetSquare]));
 
                 /* Capturing opponent piece */
                 if (Piece.IsColour(Squares[targetSquare], OpponentColour))
@@ -473,7 +473,7 @@ public class Board
             if (Piece.IsColour(Squares[targetSquare], ColourToMove))
                 continue;
 
-            moves.Add(new Move(squareIndex, targetSquare));
+            moves.Add(new Move(squareIndex, targetSquare, MoveFlags.None, Squares[squareIndex], Squares[targetSquare]));
         }
         return moves;
     }
@@ -500,7 +500,7 @@ public class Board
                 if (IsUnderAttack(targetSquare, ColourToMove, out _))
                     continue;
 
-                moves.Add(new Move(squareIndex, targetSquare));
+                moves.Add(new Move(squareIndex, targetSquare, MoveFlags.None, Squares[squareIndex], Squares[targetSquare]));
             }
         }
 
@@ -523,7 +523,7 @@ public class Board
                         castlingFailed &= IsUnderAttack(squareIndex + i, ColourToMove, out _);
                     }
                     if (!castlingFailed)
-                        moves.Add(new Move(squareIndex, squareIndex - 2, MoveFlags.QueenCastling));
+                        moves.Add(new Move(squareIndex, squareIndex - 2, MoveFlags.QueenCastling, Squares[squareIndex], Piece.None));
                 }
 
                 /* Checking for the king rook not moved */
@@ -536,7 +536,7 @@ public class Board
                         castlingFailed &= IsUnderAttack(squareIndex + i, ColourToMove, out _);
                     }
                     if (!castlingFailed)
-                        moves.Add(new Move(squareIndex, squareIndex + 2, MoveFlags.KingCastling));
+                        moves.Add(new Move(squareIndex, squareIndex + 2, MoveFlags.KingCastling, Squares[squareIndex], Piece.None));
                 }
             }
         }
@@ -571,13 +571,13 @@ public class Board
                 {
                     for (int i = 0; i < 4; i++)
                     {
-                        moves.Add(new Move(squareIndex, targetSquare, MoveFlags.PromotionKnight << i));
+                        moves.Add(new Move(squareIndex, targetSquare, MoveFlags.PromotionKnight << i, Squares[squareIndex], Piece.None));
                     }
                 }
 
                 else
                 {
-                    moves.Add(new Move(squareIndex, targetSquare));
+                    moves.Add(new Move(squareIndex, targetSquare, MoveFlags.None, Squares[squareIndex], Piece.None));
                 }
 
                 /* Can play two squares on starting rank */
@@ -586,7 +586,7 @@ public class Board
                     targetSquare += direction;
                     if (Piece.IsEmpty(Squares[targetSquare]))
                     {
-                        moves.Add(new Move(squareIndex, targetSquare, MoveFlags.DoublePawnPush));
+                        moves.Add(new Move(squareIndex, targetSquare, MoveFlags.DoublePawnPush, Squares[squareIndex], Piece.None));
                     }
                 }
             }
@@ -604,20 +604,20 @@ public class Board
                     {
                         for (int i = 0; i < 4; i++)
                         {
-                            moves.Add(new Move(squareIndex, targetSquare, MoveFlags.PromotionKnight << i));
+                            moves.Add(new Move(squareIndex, targetSquare, MoveFlags.PromotionKnight << i, Squares[squareIndex], Squares[targetSquare]));
                         }
                     }
 
                     else
                     {
-                        moves.Add(new Move(squareIndex, targetSquare));
+                        moves.Add(new Move(squareIndex, targetSquare, MoveFlags.None, Squares[squareIndex], Squares[targetSquare]));
                     }
                 }
 
                 /* Check for en passant */
                 else if (EnpassantSquare == targetSquare)
                 {
-                    moves.Add(new Move(squareIndex, targetSquare, MoveFlags.EnpassantCapture));
+                    moves.Add(new Move(squareIndex, targetSquare, MoveFlags.EnpassantCapture, Squares[squareIndex], Squares[targetSquare]));
                 }
             }
         }
@@ -633,7 +633,7 @@ public class Board
                     {
                         for (int i = 0; i < 4; i++)
                         {
-                            moves.Add(new Move(squareIndex, targetSquare, MoveFlags.PromotionKnight << i));
+                            moves.Add(new Move(squareIndex, targetSquare, MoveFlags.PromotionKnight << i, Squares[squareIndex], Squares[targetSquare]));
                         }
                     }
 
@@ -816,7 +816,7 @@ public class Board
         {
             for (int n = 0; n < PrecomputedMoveData.NumSquaresToEdge[firstSquare][directionIndex]; n++)
             {
-                int targetSquare = firstSquare + PrecomputedMoveData.DirectionOffsets[directionIndex] + (n + 1);
+                int targetSquare = firstSquare + PrecomputedMoveData.DirectionOffsets[directionIndex] * (n + 1);
 
                 if (targetSquare == secondSquare)
                     return squares;
@@ -839,7 +839,7 @@ public class Board
         legalMoves.RemoveAll(move => move.HasCastlingFlag());
         if (legalMoves.Count == 0)
         {
-            if (IsUnderAttack(KingSquare, ColourToMove, out _))
+            if ((KingSquare != -1) && IsUnderAttack(KingSquare, ColourToMove, out _))
             {
                 Flag = EndFlags.Checkmate;
             }
@@ -873,44 +873,29 @@ public class Board
                 if (repetition)
                 {
                     Flag = EndFlags.ThreefoldRepetition;
+                    return;
                 }
             }
 
-            /* TODO Insufficient Material
-            if (Flag == EndFlags.None)
+            bool hasPiece = false;
+            for (int i = 0; i < 64; i++)
             {
-                int whiteKnights = 0;
-                int blackKnights = 0;
-                int whiteBishops = 0;
-                int blackBishops = 0;
-                for (int i = 0; i < 64; i++)
-                {
-                    var piece = Squares[i];
-                    if (Piece.IsType(piece, Piece.Pawn) || Piece.IsType(piece, Piece.Queen) || Piece.IsType(piece, Piece.Rook))
-                        return;
+                if (i == WhiteKing || i == BlackKing || Piece.IsEmpty(Squares[i]))
+                    continue;
 
-                    if (Piece.IsType(piece, Piece.Knight))
-                    {
-                        if (Piece.IsColour(piece, Piece.White))
-                            whiteKnights++;
+                if (Piece.IsType(Squares[i], Piece.Pawn))
+                    return;
 
-                        else
-                            blackKnights++;
-                    }
+                if (Piece.IsType(Squares[i], Piece.Queen) || Piece.IsType(Squares[i], Piece.Rook))
+                    return;
 
-                    else if (Piece.IsType(piece, Piece.Bishop))
-                    {
-                        if (Piece.IsColour(piece, Piece.White))
-                            whiteBishops++;
+                if (hasPiece)
+                    return;
 
-                        else
-                            blackBishops++;
-                    }
-                }
+                hasPiece = true;
+            }
 
-                if ((whiteKnights < 3) || (blackKnights < 3))
-                     ?
-            } */
+            Flag = EndFlags.InsufficentMaterial;
         }
     }
 
@@ -978,7 +963,6 @@ public class Board
         {
             if (legalMove.Index == currentIndex && legalMove.TargetIndex == targetIndex && legalMove.Flag == flag)
             {
-                legalMove.WithPieces(Squares[currentIndex], Squares[targetIndex]);
                 Squares[currentIndex] = Piece.None;
 
                 if (legalMove.HasPromotionFlag())
@@ -988,7 +972,6 @@ public class Board
 
                 else if (legalMove.HasFlag(MoveFlags.EnpassantCapture))
                 {
-                    legalMove.WithPieces(legalMove.Piece, Squares[targetIndex + (Piece.IsColour(ColourToMove, Piece.White) ? -8 : 8)]);
                     Squares[targetIndex + (Piece.IsColour(ColourToMove, Piece.White) ? -8 : 8)] = Piece.None;
                     Squares[targetIndex] = legalMove.Piece;
                 }
@@ -1324,10 +1307,23 @@ public struct Move
     /// <param name="current">Current square index</param>
     /// <param name="target">Target square index</param>
     /// <param name="flag">Move flag</param>
-    public Move(int current, int target, int flag)
+    public Move(int current, int target, int flag) : this(current, target, flag, Chess.Piece.None, Chess.Piece.None)
     {
-        Current = (current << 5);
-        Target = (target << 5);
+        
+    }
+
+    /// <summary>
+    /// Generates move with flag and pieces
+    /// </summary>
+    /// <param name="current">Current square index</param>
+    /// <param name="target">Target square index</param>
+    /// <param name="flag">Move flag</param>
+    /// <param name="piece">Piece at current <paramref name="current"/></param>
+    /// <param name="targetPiece">Piece at <paramref name="target"/></param>
+    public Move(int current, int target, int flag, int piece, int targetPiece)
+    {
+        Current = piece | (current << 5);
+        Target = targetPiece | (target << 5);
         MoveFlag = flag;
         Check = false;
         Mate = false;
@@ -1470,6 +1466,7 @@ public readonly struct EndFlags
     public static readonly int Stalemate = 2;
     public static readonly int FiftyMoveRule = 4;
     public static readonly int ThreefoldRepetition = 8;
+    public static readonly int InsufficentMaterial = 16;
 }
 
 public readonly struct MoveFlags
