@@ -1,12 +1,175 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace ConsoleApp.Algorithm;
+namespace Algorithm;
 
-public class Integer
+/// <summary>
+/// Includes functions made with bitwise operators
+/// </summary>
+public class Bitwise
 {
     /// <summary>
-    /// Swaps the <see cref="int"/> values using XOR (^)
+    /// Sets the bit that found in <paramref name="index"/> to 1
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="index"></param>
+    /// <returns><see cref="int"/></returns>
+    public static int SetOne(int x, int index)
+    {
+        return (x | (1 << index));
+    }
+
+    /// <summary>
+    /// Sets the bit that found in <paramref name="index"/> to 0
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="index"></param>
+    /// <returns><see cref="int"/></returns>
+    public static int SetZero(int x, int index)
+    {
+        return (x & (0 << index));
+    }
+
+    /// <summary>
+    /// Increases <paramref name="x"/> by 1 without using ++ operator
+    /// </summary>
+    /// <param name="x"></param>
+    /// <returns><see cref="int"/></returns>
+    /// 
+    public static int Increment(int x)
+    {
+        if (x == -1)
+            return 0;
+
+        if ((x & 1) == 0)
+            return x | 1;
+
+        return (Increment(x >> 1) << 1);
+    }
+
+    /// <summary>
+    /// Decreases <paramref name="x"/> by 1 without using -- operator
+    /// </summary>
+    /// <param name="x"></param>
+    /// <returns><see cref="int"/></returns>
+    /// <exception cref="StackOverflowException"/>
+    public static int Decrement(int x)
+    {
+        if (x == 0)
+            return -1;
+
+        if ((x & 1) == 1)
+            return x ^ 1;
+
+        return (Decrement(x >> 1) << 1) | 1;
+    }
+
+    /// <summary>
+    /// Returns exclusive or of <paramref name="x"/> and <paramref name="y"/> without using ^
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="y"></param>
+    /// <returns><see cref="int"/></returns>
+    public static int ExclusiveOr(int x, int y)
+    {
+        if (x == 0 || x == -1)
+            return y;
+
+        if (y == 0 || y == -1)
+            return x;
+
+        return (ExclusiveOr(x >> 1, y >> 1) << 1) | ((x & 1) == (y & 1) ? 0 : 1);
+    }
+
+    /// <summary>
+    /// Adds <paramref name="x"/> and <paramref name="y"/> using bitwise operators
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="y"></param>
+    /// <returns><see cref="int"/></returns>
+    public static int Add(int x, int y)
+    {
+        if (y == 0)
+            return x;
+
+        return Add(x ^ y, (x & y) << 1);
+    }
+
+    /// <summary>
+    /// Subtracts <paramref name="y"/> from <paramref name="x"/> using bitwise operators
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="y"></param>
+    /// <returns><see cref="int"/></returns>
+    public static int Subtract(int x, int y)
+    {
+        if (y == 0)
+            return x;
+
+        return Subtract(x ^ y, (~x & y) << 1);
+    }
+
+    /// <summary>
+    /// Products <paramref name="x"/> and <paramref name="y"/> using bitwise operators
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="y"></param>
+    /// <returns><see cref="int"/></returns>
+    public static int Product(int x, int y)
+    {
+        if (y > 0)
+            return (((y & 1) == 1) ? x : 0) + Product(x << 1, y >> 1);
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Divides <paramref name="x"/> to <paramref name="y"/> using bitwise operators
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="y"></param>
+    /// <returns><see cref="int"/></returns>
+    public static int Divide(int x, int y)
+    {
+        if (x < y)
+            return 0;
+
+        return Add(1, Divide(Subtract(x, y), y));
+    }
+
+    /// <summary>
+    /// Returns true if <paramref name="x"/> is a even number
+    /// </summary>
+    /// <param name="x"></param>
+    /// <returns><see cref="bool"/></returns>
+    public static bool IsEven(int x)
+    {
+        return ((x & 1) == 0);
+    }
+
+    /// <summary>
+    /// Returns true if <paramref name="x"/> is a odd number
+    /// </summary>
+    /// <param name="x"></param>
+    /// <returns><see cref="bool"/></returns>
+    public static bool IsOdd(int x)
+    {
+        return ((x & 1) == 1);
+    }
+
+    /// <summary>
+    /// Returns true if <paramref name="x"/> and <paramref name="y"/> greater or lesser than 0
+    /// </summary>
+    /// <param name="x"></param>
+    /// <param name="y"></param>
+    /// <returns><see cref="bool"/></returns>
+    public static bool IsOppositeSigns(int x, int y)
+    {
+        return ((x ^ y) < 0);
+    }
+
+    /// <summary>
+    /// Swaps the <see cref="int"/> values using exclusive or
     /// </summary>
     /// <param name="x"></param>
     /// <param name="y"></param>
@@ -16,7 +179,21 @@ public class Integer
         y ^= x;
         x ^= y;
     }
+
+    /// <summary>
+    /// Returns logarithm of <paramref name="x"/> with base 2
+    /// </summary>
+    /// <param name="x"></param>
+    /// <returns><see cref="int"/></returns>
+    public static int Log2(int x)
+    {
+        if ((x >>= 1) > 0)
+            return 1 + Log2(x);
+
+        return 0;
+    }
 }
+
 
 /// <summary>
 /// Includes function with recursion
@@ -92,6 +269,19 @@ public class Recursion
 
         return 0;
     }
+    /// <summary>
+    /// Returns the digit sum of <paramref name="value"/>
+    /// </summary>
+    /// <param name="value"></param>
+    /// <returns><see cref="int"/></returns>
+    /// <exception cref="StackOverflowException"/>
+    public static int DigitSumOfValue(int value)
+    {
+        if (value > 0)
+            return (value % 10) + DigitSumOfValue(value / 10);
+
+        return 0;
+    }
 
     /// <summary>
     /// Returns the even values in given range
@@ -121,6 +311,20 @@ public class Recursion
             return ((start % 2 == 1) ? start + " " : "") + OddsInRange(start + 1, end);
 
         return "";
+    }
+
+    /// <summary>
+    /// Returns the digit sum of values from <paramref name="start"/> to <paramref name="end"/>
+    /// </summary>
+    /// <param name="start"></param>
+    /// <param name="end"></param>
+    /// <returns><see cref="int"/></returns>
+    public static int DigitSumOfRange(int start, int end)
+    {
+        if (start < end)
+            return DigitSumOfValue(start) + DigitSumOfRange(start + 1, end);
+
+        return 0;
     }
 
     /// <summary>
@@ -781,101 +985,5 @@ public class OutCategory
         }
 
         return currentSize;
-    }
-
-    static string GridWithForce(int[][] grid)
-    {
-        static int[] Find(int[][] array, int value)
-        {
-            for (int i = 0; i < array.Length; i++)
-            {
-                for (int j = 0; j < array[i].Length; j++)
-                {
-                    if (array[i][j] == value)
-                        return new int[] { i, j };
-                }
-            }
-
-            return new int[] { -1, -1 };
-        }
-
-        static bool ZeroBetwenColumn(bool[][] painted, int column1, int column2, int row)
-        {
-            for (int k = Math.Min(column1, column2); k <= Math.Max(column1, column2); k++)
-            {
-                if (!painted[row][k])
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        static bool ZeroBetwenRow(bool[][] painted, int row1, int row2, int column)
-        {
-            for (int k = Math.Min(row1, row2); k <= Math.Max(row1, row2); k++)
-            {
-                if (!painted[k][column])
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /* Checking grid is a valid item for this function */
-        if (grid.Length == 0)
-            return string.Empty;
-
-        for (int i = 0; i < grid.Length; i++)
-            if (grid[i].Length == 0 || grid[i].Length != grid[0].Length)
-                return string.Empty;
-
-        var check = new List<int>();
-        for (int i = 0; i < check.Count; i++)
-            check.Add(i + 1);
-
-        for (int i = 0; i < grid.Length; i++)
-            for (int j = 0; j < grid[i].Length; j++)
-                check.Remove(grid[i][j]);
-
-        if (check.Count > 0)
-            return string.Empty;
-
-        /* Defining Variables */
-        bool[][] painted = new bool[grid.Length][];
-        for (int i = 0; i < grid.Length; i++)
-            painted[i] = new bool[grid[i].Length];
-
-        int turn = 1;
-        string result = string.Empty;
-
-        /* Executing Algortihm */
-        while (turn <= grid.Length * grid[0].Length)
-        {
-            var c = Find(grid, turn);
-            painted[c[0]][c[1]] = true;
-            bool failed = false;
-
-            for (int i = 1; i <= turn; i++)
-            {
-                for (int j = i + 1; j <= turn; j++)
-                {
-                    var iCor = Find(grid, i);
-                    var jCor = Find(grid, j);
-
-                    if ((ZeroBetwenColumn(painted, iCor[1], jCor[1], iCor[0]) || ZeroBetwenRow(painted, iCor[0], jCor[0], jCor[1])) && (ZeroBetwenColumn(painted, iCor[1], jCor[1], jCor[0]) || ZeroBetwenRow(painted, iCor[0], jCor[0], iCor[1])))
-                        failed = true;
-                }
-
-                if (failed)
-                    break;
-            }
-
-            result += failed ? 0 : 1;
-            turn++;
-        }
-
-        return result;
     }
 }
