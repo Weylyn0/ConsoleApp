@@ -1,26 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Chess;
 
 public static class Bitboard
 {
-    public static bool Contains(ulong bitboard, int squareIndex)
-    {
-        return ((bitboard >> squareIndex) & 1) == 1;
-    }
-
-    public static List<int> BitboardSquares(ulong bitboard)
-    {
-        var squares = new List<int>();
-        for (int squareIndex = 0; squareIndex < 64; squareIndex++)
-            if (((bitboard >> squareIndex) & 1) == 1)
-                squares.Add(squareIndex);
-
-        return squares;
-    }
-
     public static string BitboardToString(ulong bitboard)
     {
         string map = "";
@@ -35,23 +18,13 @@ public static class Bitboard
         return map;
     }
 
-    public static ulong GetPieceBitboard(Board board, int colour, int type = 0)
-    {
-        ulong bitboard = 0UL;
-        for (int squareIndex = 0; squareIndex < 64; squareIndex++)
-            if (Piece.IsColour(board[squareIndex], colour) && (Piece.IsEmpty(type) || Piece.IsType(board[squareIndex], type)))
-                bitboard |= 1UL << squareIndex;
-
-        return bitboard;
-    }
-
     public static ulong GetAttackBitboard(Board board)
     {
         ulong bitboard = 0UL;
         for (int squareIndex = 0; squareIndex < 64; squareIndex++)
             if (Piece.IsColour(board[squareIndex], board.OpponentColour))
                 bitboard |= GetAttackBitboard(board, squareIndex);
-
+        
         return bitboard;
     }
 
@@ -188,6 +161,43 @@ public static class Bitboard
             }
         }
         
+        return bitboard;
+    }
+
+    public static ulong GetPinBitboard(Board board)
+    {
+        ulong bitboard = 0UL;
+        for (int directionIndex = 0; directionIndex < 8; directionIndex++)
+        {
+            int pinnedPiece = -1;
+            for (int n = 0; n < PrecomputedMoveData.Rays[board.KingSquare][directionIndex]; n++)
+            {
+                int targetSquare = board.KingSquare + PrecomputedMoveData.DirectionsOffsets[directionIndex] * (n + 1);
+                int targetPiece = board[targetSquare];
+
+                if (Piece.IsEmpty(targetPiece))
+                    continue;
+
+                if (pinnedPiece == -1)
+                {
+                    if (Piece.IsColour(targetPiece, board.OpponentColour))
+                        break;
+
+                    pinnedPiece = targetSquare;
+                }
+
+                else
+                {
+                    if (Piece.IsColour(targetPiece, board.FriendlyColour))
+                        break;
+
+                    if (!(directionIndex < 4 ? Piece.IsRookOrQueen(targetPiece) : Piece.IsBishopOrQueen(targetPiece)))
+                        break;
+
+                    bitboard |= 1UL << pinnedPiece;
+                }
+            }
+        }
         return bitboard;
     }
 }

@@ -42,11 +42,6 @@ public static class Piece
         return (piece & colour) == colour;
     }
 
-    public static bool IsWhite(int piece)
-    {
-        return (piece & White) == White;
-    }
-
     public static bool IsEmpty(int piece)
     {
         return (piece & typeMask) == None || (piece & typeMask) == 4;
@@ -67,24 +62,6 @@ public static class Piece
         return (piece & rookOrQueenMask) == rookOrQueenMask;
     }
 
-    public static int GetPromotionType(int flag) => flag switch
-    {
-        MoveFlags.PromotionKnight => Knight,
-        MoveFlags.PromotionBishop => Bishop,
-        MoveFlags.PromotionRook => Rook,
-        MoveFlags.PromotionQueen => Queen,
-        _ => 0,
-    };
-
-    public static int GetPromotionFlag(int piece) => piece switch
-    {
-        Knight => MoveFlags.PromotionKnight,
-        Bishop => MoveFlags.PromotionBishop,
-        Rook => MoveFlags.PromotionRook,
-        Queen => MoveFlags.PromotionQueen,
-        _ => 0
-    };
-
     public static int GetPieceType(char c)
     {
         return LowerPieceSymbols.IndexOf(char.ToLower(c));
@@ -97,6 +74,6 @@ public static class Piece
 
     public static char GetSymbol(int piece)
     {
-        return IsWhite(piece) ? UpperPieceSymbols[Type(piece)] : LowerPieceSymbols[Type(piece)];
+        return Colour(piece) == White ? UpperPieceSymbols[Type(piece)] : LowerPieceSymbols[Type(piece)];
     }
 }

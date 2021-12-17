@@ -2,12 +2,25 @@
 
 public struct Move
 {
+    #region Fields
+
     private readonly int From;
     private readonly int To;
-    private readonly int Flag;
+    private readonly byte Flag;
+
+    #endregion
+
+
+    #region Masks
 
     private const int squareMask = 0b00000111111;
     private const int pieceMask = 0b11111000000;
+    private const int colourMask = 0b11000000000;
+
+    #endregion
+
+
+    #region Properties
 
     public int StartingSquare
     {
@@ -41,19 +54,19 @@ public struct Move
         }
     }
 
-    public int MoveFlag
+    public int FriendlyColour
     {
         get
         {
-            return Flag;
+            return (From & colourMask) >> 6; 
         }
     }
 
-    public bool NoFlag
+    public int OpponentColour
     {
         get
         {
-            return (Flag == MoveFlags.None);
+            return FriendlyColour ^ (colourMask >> 6);
         }
     }
 
@@ -69,7 +82,23 @@ public struct Move
     {
         get
         {
-            return (Flag & (MoveFlags.BlackKingCastling | MoveFlags.BlackQueenCastling | MoveFlags.WhiteKingCastling | MoveFlags.BlackQueenCastling)) != 0;
+            return (Flag & (MoveFlags.QueensideCastling | MoveFlags.KingsideCastling)) > 0;
+        }
+    }
+
+    public bool IsQueensideCastling
+    {
+        get
+        {
+            return Flag == MoveFlags.QueensideCastling;
+        }
+    }
+
+    public bool IsKingsideCastling
+    {
+        get
+        {
+            return Flag == MoveFlags.KingsideCastling;
         }
     }
 
@@ -89,33 +118,52 @@ public struct Move
         }
     }
 
+    public int PromotionType
+    {
+        get => Flag switch
+        {
+            MoveFlags.PromotionKnight => Piece.Knight,
+            MoveFlags.PromotionBishop => Piece.Bishop,
+            MoveFlags.PromotionRook => Piece.Rook,
+            MoveFlags.PromotionQueen => Piece.Queen,
+            _ => Piece.None
+        };
+    }
+
+    public int CastlingRookSquare
+    {
+        get => Flag switch
+        {
+            MoveFlags.QueensideCastling => FriendlyColour == Piece.White ? 0 : 56,
+            MoveFlags.KingsideCastling => FriendlyColour == Piece.White ? 7 : 63,
+            _ => -1
+        };
+    }
+
     public string Uci
     {
         get
         {
-            return $"{Coordinates.GetUci(StartingSquare)}{Coordinates.GetUci(EndingSquare)}{(IsPromotion ? Piece.GetSymbol(Piece.GetPromotionType(Flag)) : string.Empty)}";
+            return $"{UniversalChessInterface.GetUci(StartingSquare)}{UniversalChessInterface.GetUci(EndingSquare)}{(IsPromotion ? Piece.GetSymbol(PromotionType) : string.Empty)}";
         }
     }
 
-    public override string ToString()
-    {
-        return Uci;
-    }
+    #endregion
+
+
+    #region Constructor
 
     public Move(int startingSquare, int targetSquare, int friendlyPiece, int opponentPiece) : this(startingSquare, targetSquare, friendlyPiece, opponentPiece, MoveFlags.None)
     {
 
     }
 
-    public Move(int startingSquare, int targetSquare, int friendlyPiece, int opponentPiece, int flag)
+    public Move(int startingSquare, int targetSquare, int friendlyPiece, int opponentPiece, byte flag)
     {
         From = (friendlyPiece << 6) | startingSquare;
         To = (opponentPiece << 6) | targetSquare;
         Flag = flag;
     }
 
-    public bool HasFlag(int flag)
-    {
-        return (Flag & flag) == flag;
-    }
+    #endregion
 }

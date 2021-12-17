@@ -5,22 +5,31 @@ namespace Chess;
 
 public class Board
 {
+    #region Fields
+
     private readonly int[] Squares;
     private readonly int[] Kings;
-    private readonly List<Move> Moves;
-    private List<Move> GeneratedMoves;
-    private readonly Dictionary<int, int> Pins;
-    private readonly List<byte> CastlingHistory;
-    private byte Flag;
-    private byte Castling;
+
     private int ColourToMove;
     private int Enpassant;
+    private byte Flag;
+
+    private readonly List<Move> Moves;
+    private List<Move> GeneratedMoves;
+
+    private readonly List<byte> CastlingHistory;
+    private byte Castling;
+
+    private ulong PinBitboard;
+    private ulong AttackBitboard;
 
     private int AttackingSquare;
-    private ulong AttackBitboard;
     private bool IsCheck;
     private bool IsDoubleCheck;
     private bool IsKnightCheck;
+
+    #endregion
+
 
     #region Properties
 
@@ -110,7 +119,7 @@ public class Board
         {
             lock (Squares)
             {
-                return Piece.IsWhite(ColourToMove) ? Kings[0] : Kings[1];
+                return ColourToMove == Piece.White ? Kings[0] : Kings[1];
             }
         }
     }
@@ -185,35 +194,19 @@ public class Board
         }
     }
 
-    public bool WhiteQueenSideCastling
+    public bool QueenSideCastling
     {
         get
         {
-            return (Castling & Castlings.WhiteQueenSide) == Castlings.WhiteQueenSide;
+            return (Castling & (ColourToMove == Piece.White ? Castlings.WhiteQueenSide : Castlings.BlackQueenSide)) > 0;
         }
     }
 
-    public bool WhiteKingSideCastling
+    public bool KingSideCastling
     {
         get
         {
-            return (Castling & Castlings.WhiteKingSide) == Castlings.WhiteKingSide;
-        }
-    }
-
-    public bool BlackQueenSideCastling
-    {
-        get
-        {
-            return (Castling & Castlings.BlackQueenSide) == Castlings.BlackQueenSide;
-        }
-    }
-
-    public bool BlackKingSideCastling
-    {
-        get
-        {
-            return (Castling & Castlings.BlackKingSide) == Castlings.BlackKingSide;
+            return (Castling & (ColourToMove == Piece.White ? Castlings.WhiteKingSide : Castlings.BlackKingSide)) > 0;
         }
     }
 
@@ -221,7 +214,7 @@ public class Board
     {
         get
         {
-            return $"{(WhiteKingSideCastling ? 'K' : string.Empty)}{(WhiteQueenSideCastling ? 'Q' : string.Empty)}{(BlackKingSideCastling ? 'k' : string.Empty)}{(BlackQueenSideCastling ? 'q' : string.Empty)}{((Castling == Castlings.None) ? '-' : string.Empty)}";
+            return Castling == Castlings.None ? "-" : $"{((Castling & Castlings.WhiteKingSide) > 0 ? "K" : string.Empty)}{((Castling & Castlings.WhiteQueenSide) > 0 ? "Q" : string.Empty)}{((Castling & Castlings.BlackKingSide) > 0 ? "k" : string.Empty)}{((Castling & Castlings.BlackQueenSide) > 0 ? "q" : string.Empty)}";
         }
     }
 
@@ -238,6 +231,7 @@ public class Board
         get
         {
             string pgn = $"[Event \"Weychess\"]\n[UTCDate \"{DateTime.UtcNow:yyyy.MM.dd}\"]\n[UTCTime \"{DateTime.UtcNow:HH:mm:ss}\"]";
+            /* TODO */
             return pgn;
         }
     }
@@ -267,13 +261,13 @@ public class Board
                     fen += (k > 0) ? k : string.Empty;
                     fen += (rank < 7) ? "/" : string.Empty;
                 }
-                fen += $" {((ColourToMove == Piece.White) ? 'w' : 'b')} {CastlingText} {Coordinates.GetUci(Enpassant)} {HalfMoveCount} {FullMoveCount}";
+                fen += $" {((ColourToMove == Piece.White) ? 'w' : 'b')} {CastlingText} {UniversalChessInterface.GetUci(Enpassant)} {HalfMoveCount} {FullMoveCount}";
                 return fen;
             }
         }
     }
 
-    public string AttackersMap
+    public string AttackMap
     {
         get
         {
@@ -295,48 +289,49 @@ public class Board
         }
     }
 
-    public string String
+    public override string ToString()
     {
-        get
+        lock (Squares)
         {
-            lock (Squares)
+            string text = $"\n  Turn: {(ColourToMove == Piece.White ? "White" : "Black")}\n  Castlings: {CastlingText}\n  Enpassant Square: {EnpassantSquare}\n  FEN: {Fen}\n\n";
+            for (int rank = 0; rank < 8; rank++)
             {
-                string text = $"\n  Turn: {(Piece.IsWhite(ColourToMove) ? "White" : "Black")}\n  Castlings: {CastlingText}\n  Enpassant Square: {EnpassantSquare}\n  FEN: {Fen}\n\n";
-                for (int rank = 0; rank < 8; rank++)
+                text += $"  {8 - rank} ";
+                for (int file = 0; file < 8; file++)
                 {
-                    text += $"  {8 - rank} ";
-                    for (int file = 0; file < 8; file++)
-                    {
-                        text += $" {Piece.GetSymbol(Squares[(7 - rank) * 8 + file])}";
-                    }
-                    text += "\n";
+                    text += $" {Piece.GetSymbol(Squares[(7 - rank) * 8 + file])}";
                 }
-                text += "\n     A B C D E F G H\n";
-                return text;
+                text += "\n";
             }
+            text += "\n     A B C D E F G H\n";
+            return text;
         }
     }
 
-    public override string ToString()
-    {
-        return String;
-    }
-
     #endregion
+
+
+    #region Constructors
 
     public Board()
     {
         Squares = new int[64];
         Kings = new int[2] { -1, -1 };
+
+        ColourToMove = Piece.White;
+        Enpassant = -1;
+        Flag = EndFlags.None;
+
         Moves = new List<Move>();
         GeneratedMoves = new List<Move>();
-        Pins = new Dictionary<int, int>();
+
         CastlingHistory = new List<byte>();
-        ColourToMove = Piece.White;
         Castling = Castlings.None;
-        Enpassant = -1;
-        AttackingSquare = -1;
+
+        PinBitboard = 0UL;
         AttackBitboard = 0UL;
+
+        AttackingSquare = -1;
         IsCheck = false;
         IsDoubleCheck = false;
         IsKnightCheck = false;
@@ -379,7 +374,7 @@ public class Board
 
         if (splittedFen.Length > 3)
         {
-            board.Enpassant = Coordinates.GetSquareFromUci(splittedFen[3]);
+            board.Enpassant = UniversalChessInterface.GetSquareFromUci(splittedFen[3]);
         }
 
         board.Calculate();
@@ -435,8 +430,160 @@ public class Board
         return board;
     }
 
-    public void GenerateLegalMoves()
+    #endregion
+
+
+    #region Move
+
+    public bool Push(string uci)
     {
+        return Push(UniversalChessInterface.GetMoveFromUci(this, uci));
+    }
+
+    public bool Push(int startingSquare, int endingSquare)
+    {
+        return Push(startingSquare, endingSquare, MoveFlags.None);
+    }
+
+    public bool Push(int startingSquare, int endingSquare, byte flag)
+    {
+        return Push(new Move(startingSquare, endingSquare, Squares[startingSquare], Squares[endingSquare], flag));
+    }
+
+    public bool Push(Move move)
+    {
+        if (!GeneratedMoves.Contains(move))
+            return false;
+
+        MakeMove(move);
+        Moves.Add(move);
+        ColourToMove = OpponentColour;
+        Calculate();
+        return true;
+    }
+
+    public bool Takeback()
+    {
+        if (Moves.Count == 0)
+            return false;
+
+        var lastMove = Moves[^1];
+        Moves.RemoveAt(Moves.Count - 1);
+        UnmakeMove(lastMove);
+        ColourToMove = OpponentColour;
+        Calculate();
+        return true;
+    }
+
+    private void MakeMove(Move move)
+    {
+        CastlingHistory.Add(Castling);
+        Squares[move.StartingSquare] = Piece.None;
+        Squares[move.EndingSquare] = move.FriendlyPiece;
+        Enpassant = move.IsDoublePawnPush ? move.EndingSquare + (move.FriendlyColour == Piece.White ? -8 : 8) : -1;
+
+        if (move.IsPromotion)
+        {
+            Squares[move.EndingSquare] = move.PromotionType | move.FriendlyColour;
+        }
+
+        else if (move.IsEnpassant)
+        {
+            Squares[move.EndingSquare + (move.FriendlyColour == Piece.White ? -8 : 8)] = Piece.None;
+        }
+
+        else if (move.IsCastling)
+        {
+            Squares[move.CastlingRookSquare] = Piece.None;
+            Squares[move.CastlingRookSquare + (move.IsQueensideCastling ? 3 : -2)] = Piece.Rook | move.FriendlyColour;
+            Castling ^= move.FriendlyColour == Piece.White ? Castlings.White : Castlings.Black;
+        }
+
+        else
+        {
+            if (Piece.IsType(move.FriendlyPiece, Piece.King))
+                Castling &= move.FriendlyColour == Piece.White ? Castlings.Black : Castlings.White;
+
+            else if (Piece.IsType(move.FriendlyPiece, Piece.Rook))
+                Castling ^= move.StartingSquare switch
+                {
+                    Coordinates.A1 => (byte)(move.FriendlyColour == Piece.White ? (Castlings.All ^ Castlings.WhiteQueenSide) : Castlings.None),
+                    Coordinates.A8 => (byte)(move.FriendlyColour == Piece.Black ? (Castlings.All ^ Castlings.BlackQueenSide) : Castlings.None),
+                    Coordinates.H1 => (byte)(move.FriendlyColour == Piece.White ? (Castlings.All ^ Castlings.WhiteKingSide) : Castlings.None),
+                    Coordinates.H8 => (byte)(move.FriendlyColour == Piece.Black ? (Castlings.All ^ Castlings.BlackKingSide) : Castlings.None),
+                    _ => Castlings.None
+                };
+        }
+    }
+
+    private void UnmakeMove(Move move)
+    {
+        if (CastlingHistory.Count > 0)
+        {
+            Castling = CastlingHistory[^1];
+            CastlingHistory.RemoveAt(CastlingHistory.Count - 1);
+        }
+
+        Squares[move.StartingSquare] = move.FriendlyPiece;
+        Squares[move.EndingSquare] = move.OpponentPiece;
+        Enpassant = Moves.Count > 0 ? (Moves[^1].IsDoublePawnPush ? Moves[^1].EndingSquare + (Moves[^1].FriendlyColour == Piece.White ? -8 : 8) : -1) : -1;
+
+        if (move.IsPromotion)
+        {
+            Squares[move.StartingSquare] = Piece.Pawn | move.FriendlyColour;
+        }
+
+        else if (move.IsEnpassant)
+        {
+            Squares[move.EndingSquare + (move.FriendlyColour == Piece.White ? -8 : 8)] = Piece.Pawn | move.OpponentColour;
+        }
+
+        else if (move.IsCastling)
+        {
+            Squares[move.CastlingRookSquare] = Piece.Rook | move.FriendlyColour;
+            Squares[move.CastlingRookSquare + (move.IsQueensideCastling ? 3 : -2)] = Piece.None;
+        }
+    }
+
+    #endregion
+
+
+    #region Move Generation
+
+    private void Calculate()
+    {
+        /* Finding king squares */
+        for (int squareIndex = 0; squareIndex < 64; squareIndex++)
+            if (Squares[squareIndex] == (Piece.King | Piece.White))
+                Kings[0] = squareIndex;
+
+            else if (Squares[squareIndex] == (Piece.King | Piece.Black))
+                Kings[1] = squareIndex;
+
+        /* Regenerating pin and attack bitboard */
+        PinBitboard = Bitboard.GetPinBitboard(this);
+
+        AttackingSquare = -1;
+        AttackBitboard = 0UL;
+        IsCheck = false;
+        IsDoubleCheck = false;
+        IsKnightCheck = false;
+        for (int squareIndex = 0; squareIndex < 64; squareIndex++)
+        {
+            if (Piece.IsColour(Squares[squareIndex], OpponentColour))
+            {
+                ulong bitboard = Bitboard.GetAttackBitboard(this, squareIndex);
+                if (((bitboard >> KingSquare) & 1) == 1)
+                {
+                    AttackingSquare = squareIndex;
+                    IsDoubleCheck = IsCheck;
+                    IsCheck = true;
+                    IsKnightCheck = Piece.IsType(Squares[squareIndex], Piece.Knight);
+                }
+                AttackBitboard |= bitboard;
+            }
+        }
+
         /* Generate only moves for king on double check */
         if (IsDoubleCheck)
             GeneratedMoves = GenerateLegalMoves(KingSquare);
@@ -445,7 +592,7 @@ public class Board
         var moves = new List<Move>();
         for (int squareIndex = 0; squareIndex < 64; squareIndex++)
         {
-            if (Piece.IsColour(Squares[squareIndex], ColourToMove))
+            if (Piece.IsColour(Squares[squareIndex], FriendlyColour))
             {
                 moves.AddRange(GenerateLegalMoves(squareIndex));
             }
@@ -474,42 +621,53 @@ public class Board
             }
         }
         GeneratedMoves = moves;
+
+        /* Checking for end after all calculations for current position */
+        if (LegalMoves.Length == 0)
+        {
+            Flag = IsCheck ? EndFlags.Checkmate : EndFlags.Stalemate;
+        }
     }
 
-    public List<Move> GenerateLegalMoves(int squareIndex)
+    private List<Move> GenerateLegalMoves(int squareIndex)
     {
         var moves = new List<Move>();
         int piece = Squares[squareIndex];
         int rank = squareIndex >> 3;
         int file = squareIndex & 7;
         bool pinned = IsPinned(squareIndex);
+        int pinDirection = pinned ? PrecomputedMoveData.Lookup(KingSquare, squareIndex) : -1;
 
-        /* Generate moves for queen, rook and bishop */
+        /* Generating moves for queen, rook and bishop */
         if (Piece.IsSlidingPiece(piece))
         {
             for (int directionIndex = (Piece.IsType(piece, Piece.Bishop) ? 4 : 0); directionIndex < (Piece.IsType(piece, Piece.Rook) ? 4 : 8); directionIndex++)
             {
-                if (!pinned || ((Pins[squareIndex] | 1) == (directionIndex | 1)))
+                if (!pinned || ((pinDirection | 1) == (directionIndex | 1)))
                 {
-                    for (int i = 0; i < PrecomputedMoveData.Rays[squareIndex][directionIndex]; i++)
+                    for (int n = 0; n < PrecomputedMoveData.Rays[squareIndex][directionIndex]; n++)
                     {
-                        int targetSquare = squareIndex + PrecomputedMoveData.DirectionsOffsets[directionIndex] * (i + 1);
+                        int targetSquare = squareIndex + PrecomputedMoveData.DirectionsOffsets[directionIndex] * (n + 1);
+                        int targetPiece = Squares[targetSquare];
 
-                        if (Piece.IsColour(Squares[targetSquare], ColourToMove))
+                        /* Can't go any further because a friendly piece blocked the way */
+                        if (Piece.IsColour(targetPiece, FriendlyColour))
                             break;
 
-                        moves.Add(new Move(squareIndex, targetSquare, piece, Squares[targetSquare]));
+                        moves.Add(new Move(squareIndex, targetSquare, piece, targetPiece));
 
-                        if (!Piece.IsEmpty(Squares[targetSquare]))
+                        /* Can't go any further after capturing opponent piece */
+                        if (!Piece.IsEmpty(targetPiece))
                             break;
                     }
                 }
             }
         }
 
-        /* Generate moves for knight */
+        /* Generating moves for knight */
         else if (Piece.IsType(piece, Piece.Knight))
         {
+            /* Knights can't move while pinned */
             if (!pinned)
             {
                 for (int knightRank = -2; knightRank <= 2; knightRank++)
@@ -526,16 +684,19 @@ public class Board
                             continue;
 
                         int targetSquare = newRank * 8 + newFile;
-                        if (Piece.IsColour(Squares[targetSquare], ColourToMove))
+                        int targetPiece = Squares[targetSquare];
+
+                        /* Can't leap on a friendly piece */
+                        if (Piece.IsColour(targetPiece, FriendlyColour))
                             continue;
 
-                        moves.Add(new Move(squareIndex, targetSquare, piece, Squares[targetSquare]));
+                        moves.Add(new Move(squareIndex, targetSquare, piece, targetPiece));
                     }
                 }
             }
         }
 
-        /* Generate moves for king */
+        /* Generating moves for king */
         else if (Piece.IsType(piece, Piece.King))
         {
             for (int directionIndex = 0; directionIndex < 8; directionIndex++)
@@ -543,102 +704,60 @@ public class Board
                 if (PrecomputedMoveData.Rays[squareIndex][directionIndex] > 0)
                 {
                     int targetSquare = squareIndex + PrecomputedMoveData.DirectionsOffsets[directionIndex];
+
+                    /* Can't move to a attacked square */
                     if (IsAttacked(targetSquare))
                         continue;
 
-                    if (Piece.IsColour(Squares[targetSquare], ColourToMove))
+                    int targetPiece = Squares[targetSquare];
+
+                    /* Can't move over a friendly piece */
+                    if (Piece.IsColour(targetPiece, FriendlyColour))
                         continue;
 
-                    moves.Add(new Move(squareIndex, targetSquare, piece, Squares[targetSquare]));
+                    moves.Add(new Move(squareIndex, targetSquare, piece, targetPiece));
                 }
             }
 
-            /* Generate castlings */
-            if (file == 4 && !IsAttacked(squareIndex))
+            /* Generating castlings */
+            if ((squareIndex == (FriendlyColour == Piece.White ? Coordinates.E1 : Coordinates.E8)) && !IsAttacked(squareIndex))
             {
-                bool failed;
-                if (Piece.IsWhite(piece))
+                bool failed = false;
+                int rookSquare = FriendlyColour == Piece.White ? Coordinates.A1 : Coordinates.A8;
+                if (QueenSideCastling && Squares[rookSquare] == (Piece.Rook | FriendlyColour) && Piece.IsEmpty(Squares[rookSquare + 1]))
                 {
-                    if (rank == 0)
+                    int targetSquare = KingSquare - 2;
+
+                    for (int i = targetSquare; i < KingSquare; i++)
                     {
-                        if (WhiteQueenSideCastling && (Squares[0] == (Piece.Rook | Piece.White)))
+                        if (!Piece.IsEmpty(Squares[i]) || IsAttacked(i))
                         {
-                            failed = false;
-                            for (int i = 2; i < 4; i++)
-                            {
-                                if (!Piece.IsEmpty(Squares[i]) || IsAttacked(i))
-                                {
-                                    failed = true;
-                                    break;
-                                }
-                            }
-
-                            if (!failed)
-                            {
-                                moves.Add(new Move(4, 2, piece, Piece.None, MoveFlags.WhiteQueenCastling));
-                            }
-                        }
-
-                        if (WhiteKingSideCastling && (Squares[7] == (Piece.Rook | Piece.White)))
-                        {
-                            failed = false;
-                            for (int i = 5; i < 7; i++)
-                            {
-                                if (!Piece.IsEmpty(Squares[i]) || IsAttacked(i))
-                                {
-                                    failed = true;
-                                    break;
-                                }
-                            }
-
-                            if (!failed)
-                            {
-                                moves.Add(new Move(4, 6, piece, Piece.None, MoveFlags.WhiteKingCastling));
-                            }
+                            failed = true;
+                            break;
                         }
                     }
+
+                    if (!failed)
+                        moves.Add(new Move(squareIndex, targetSquare, piece, Piece.None, MoveFlags.QueensideCastling));
                 }
 
-                else
+                failed = false;
+                rookSquare += 7;
+                if (KingSideCastling && Squares[rookSquare] == (Piece.Rook | FriendlyColour))
                 {
-                    if (rank == 7)
+                    int targetSquare = KingSquare + 2;
+
+                    for (int i = targetSquare; i > KingSquare; i--)
                     {
-                        if (BlackQueenSideCastling && (Squares[56] == (Piece.Rook | Piece.Black)))
+                        if (!Piece.IsEmpty(Squares[i]) || IsAttacked(i))
                         {
-                            failed = false;
-                            for (int i = 58; i < 60; i++)
-                            {
-                                if (!Piece.IsEmpty(Squares[i]) || IsAttacked(i))
-                                {
-                                    failed = true;
-                                    break;
-                                }
-                            }
-
-                            if (!failed)
-                            {
-                                moves.Add(new Move(60, 58, piece, Piece.None, MoveFlags.BlackQueenCastling));
-                            }
-                        }
-
-                        if (BlackKingSideCastling && (Squares[63] == (Piece.Rook | Piece.Black)))
-                        {
-                            failed = false;
-                            for (int i = 61; i < 63; i++)
-                            {
-                                if (!Piece.IsEmpty(Squares[i]) || IsAttacked(i))
-                                {
-                                    failed = true;
-                                    break;
-                                }
-                            }
-
-                            if (!failed)
-                            {
-                                moves.Add(new Move(60, 62, piece, Piece.None, MoveFlags.BlackKingCastling));
-                            }
+                            failed = true;
+                            break;
                         }
                     }
+
+                    if (!failed)
+                        moves.Add(new Move(squareIndex, targetSquare, piece, Piece.None, MoveFlags.KingsideCastling));
                 }
             }
         }
@@ -646,13 +765,14 @@ public class Board
         /* Generate moves for pawn */
         else if (Piece.IsType(piece, Piece.Pawn))
         {
-            int directionIndex = Piece.IsWhite(piece) ? 0 : 1;
+            int directionIndex = Piece.Colour(piece) == Piece.White ? 0 : 1;
             int direction = PrecomputedMoveData.DirectionsOffsets[directionIndex];
             int startingRank = (directionIndex == 0) ? 1 : 6;
             int promotionRank = 7 - startingRank;
 
+            /* Generating forward moves */
             int targetSquare = squareIndex + direction;
-            if (!pinned || (Pins[squareIndex] == directionIndex))
+            if (!pinned || (pinDirection == directionIndex))
             {
                 if (Piece.IsEmpty(Squares[targetSquare]))
                 {
@@ -660,7 +780,7 @@ public class Board
                     {
                         for (int promotion = 0; promotion < 4; promotion++)
                         {
-                            moves.Add(new Move(squareIndex, targetSquare, piece, Piece.None, 1 << promotion));
+                            moves.Add(new Move(squareIndex, targetSquare, piece, Piece.None, (byte)(MoveFlags.PromotionKnight << promotion)));
                         }
                     }
 
@@ -679,370 +799,92 @@ public class Board
                 }
             }
 
-            /* Generate pawn capture moves */
-            if (file > 0 && (!pinned || (Pins[squareIndex] == (direction == 8 ? 4 : 7))))
+            /* Generating capture moves */
+            if (file > 0 && (!pinned || (pinDirection == (direction == 8 ? 4 : 7))))
             {
                 targetSquare = squareIndex + direction - 1;
-                if (Piece.IsColour(Squares[targetSquare], OpponentColour))
+                int targetPiece = Squares[targetSquare];
+                if (Piece.IsColour(targetPiece, OpponentColour))
                 {
                     if (rank == promotionRank)
                     {
                         for (int promotion = 0; promotion < 4; promotion++)
                         {
-                            moves.Add(new Move(squareIndex, targetSquare, piece, Squares[targetSquare], 1 << promotion));
+                            moves.Add(new Move(squareIndex, targetSquare, piece, targetPiece, (byte)(MoveFlags.PromotionKnight << promotion)));
                         }
                     }
 
                     else
                     {
-                        moves.Add(new Move(squareIndex, targetSquare, piece, Squares[targetSquare]));
+                        moves.Add(new Move(squareIndex, targetSquare, piece, targetPiece));
                     }
                 }
 
                 else if (targetSquare == Enpassant)
                 {
-                    moves.Add(new Move(squareIndex, targetSquare, piece, Squares[targetSquare], MoveFlags.EnpassantCapture));
+                    var enpassantMove = new Move(squareIndex, targetSquare, piece, Piece.None, MoveFlags.EnpassantCapture);
+
+                    if (KingSquare == -1 || (rank != (KingSquare >> 3)) || !KingAttackedAfterEnpassant(enpassantMove))
+                        moves.Add(enpassantMove);
                 }
             }
 
-            if (file < 7 && (!pinned || (Pins[squareIndex] == (direction == 8 ? 6 : 5))))
+            if (file < 7 && (!pinned || (pinDirection == (direction == 8 ? 6 : 5))))
             {
                 targetSquare = squareIndex + direction + 1;
-                if (Piece.IsColour(Squares[targetSquare], OpponentColour))
+                int targetPiece = Squares[targetSquare];
+                if (Piece.IsColour(targetPiece, OpponentColour))
                 {
                     if (rank == promotionRank)
                     {
                         for (int promotion = 0; promotion < 4; promotion++)
                         {
-                            moves.Add(new Move(squareIndex, targetSquare, piece, Squares[targetSquare], 1 << promotion));
+                            moves.Add(new Move(squareIndex, targetSquare, piece, targetPiece, (byte)(MoveFlags.PromotionKnight << promotion)));
                         }
                     }
 
                     else
                     {
-                        moves.Add(new Move(squareIndex, targetSquare, piece, Squares[targetSquare]));
+                        moves.Add(new Move(squareIndex, targetSquare, piece, targetPiece));
                     }
                 }
 
                 else if (targetSquare == Enpassant)
                 {
-                    moves.Add(new Move(squareIndex, targetSquare, piece, Squares[targetSquare], MoveFlags.EnpassantCapture));
+                    var enpassantMove = new Move(squareIndex, targetSquare, piece, Piece.None, MoveFlags.EnpassantCapture);
+
+                    if (KingSquare == -1 || (rank != (KingSquare >> 3)) || !KingAttackedAfterEnpassant(enpassantMove))
+                        moves.Add(enpassantMove);
                 }
             }
         }
         return moves;
     }
 
-    public bool MakeMove(string uci)
+    private bool KingAttackedAfterEnpassant(Move enpassantMove)
     {
-        return MakeMove(Coordinates.GetMoveFromUci(this, uci));
-    }
-
-    public bool MakeMove(int startingSquare, int endingSquare)
-    {
-        return MakeMove(startingSquare, endingSquare, MoveFlags.None);
-    }
-
-    public bool MakeMove(int startingSquare, int endingSquare, int flag)
-    {
-        return MakeMove(new Move(startingSquare, endingSquare, Squares[startingSquare], Squares[endingSquare], flag));
-    }
-
-    public bool MakeMove(Move move)
-    {
-        if (!GeneratedMoves.Contains(move))
-            return false;
-
-        Squares[move.StartingSquare] = Piece.None;
-        Squares[move.EndingSquare] = move.FriendlyPiece;
-        CastlingHistory.Add(Castling);
-        switch (move.MoveFlag)
+        MakeMove(enpassantMove);
+        ulong bitboard = 0UL;
+        for (int file = 0; file < 8; file++)
         {
-            case MoveFlags.None:
-                if (Piece.IsType(move.FriendlyPiece, Piece.King))
-                {
-                    Castling ^= Piece.IsWhite(ColourToMove) ? Castlings.White : Castlings.Black;
-                }
-                else if (Piece.IsType(move.FriendlyPiece, Piece.Rook))
-                {
-                    if (Piece.IsWhite(ColourToMove))
-                    {
-                        if (move.StartingSquare == Coordinates.A1)
-                            Castling ^= Castlings.WhiteQueenSide;
-
-                        else if (move.StartingSquare == Coordinates.H1)
-                            Castling ^= Castlings.WhiteKingSide;
-                    }
-                    else
-                    {
-                        if (move.StartingSquare == Coordinates.A8)
-                            Castling ^= Castlings.BlackQueenSide;
-
-                        else if (move.StartingSquare == Coordinates.H8)
-                            Castling ^= Castlings.BlackKingSide;
-                    }
-                }
-                break;
-
-            case MoveFlags.PromotionKnight:
-                Squares[move.EndingSquare] = Piece.Knight | ColourToMove;
-                break;
-
-            case MoveFlags.PromotionBishop:
-                Squares[move.EndingSquare] = Piece.Bishop | ColourToMove;
-                break;
-
-            case MoveFlags.PromotionRook:
-                Squares[move.EndingSquare] = Piece.Rook | ColourToMove;
-                break;
-
-            case MoveFlags.PromotionQueen:
-                Squares[move.EndingSquare] = Piece.Queen | ColourToMove;
-                break;
-
-            case MoveFlags.EnpassantCapture:
-                Squares[Enpassant + (Piece.IsWhite(ColourToMove) ? -8 : 8)] = Piece.None;
-                break;
-
-            case MoveFlags.WhiteQueenCastling:
-                Squares[Coordinates.A1] = Piece.None;
-                Squares[Coordinates.D1] = Piece.Rook | Piece.White;
-                Castling ^= Castlings.WhiteQueenSide;
-                break;
-
-            case MoveFlags.WhiteKingCastling:
-                Squares[Coordinates.F1] = Piece.Rook | Piece.White;
-                Squares[Coordinates.H1] = Piece.None;
-                Castling ^= Castlings.WhiteKingSide;
-                break;
-
-            case MoveFlags.BlackQueenCastling:
-                Squares[Coordinates.A8] = Piece.None;
-                Squares[Coordinates.D8] = Piece.Rook | Piece.Black;
-                Castling ^= Castlings.BlackQueenSide;
-                break;
-
-            case MoveFlags.BlackKingCastling:
-                Squares[Coordinates.F8] = Piece.Rook | Piece.Black;
-                Squares[Coordinates.H8] = Piece.None;
-                Castling ^= Castlings.BlackKingSide;
-                break;
+            int squareIndex = enpassantMove.StartingSquare & 0b111000 | file;
+            if (Piece.IsColour(Squares[squareIndex], OpponentColour) && Piece.IsRookOrQueen(Squares[squareIndex]))
+                bitboard |= Bitboard.GetAttackBitboard(this, squareIndex);
         }
 
-        Enpassant = move.IsDoublePawnPush ? move.StartingSquare + (Piece.IsWhite(ColourToMove) ? 8 : -8) : -1;
-        ColourToMove = OpponentColour;
-        Moves.Add(move);
-        Calculate();
-        return true;
+        UnmakeMove(enpassantMove);
+        return ((bitboard >> KingSquare) & 1) == 1;
     }
 
-    public bool Takeback()
+    private bool IsAttacked(int squareIndex)
     {
-        if (Moves.Count == 0)
-            return false;
-
-        var move = Moves[^1];
-        Castling = CastlingHistory[^1];
-        Moves.RemoveAt(Moves.Count - 1);
-        CastlingHistory.RemoveAt(CastlingHistory.Count - 1);
-        Squares[move.StartingSquare] = move.FriendlyPiece;
-        Squares[move.EndingSquare] = move.OpponentPiece;
-        switch (move.MoveFlag)
-        {
-            case MoveFlags.PromotionKnight:
-                Squares[move.StartingSquare] = Piece.Pawn | OpponentColour;
-                break;
-
-            case MoveFlags.PromotionBishop:
-                Squares[move.StartingSquare] = Piece.Pawn | OpponentColour;
-                break;
-
-            case MoveFlags.PromotionRook:
-                Squares[move.StartingSquare] = Piece.Pawn | OpponentColour;
-                break;
-
-            case MoveFlags.PromotionQueen:
-                Squares[move.StartingSquare] = Piece.Pawn | OpponentColour;
-                break;
-
-            case MoveFlags.EnpassantCapture:
-                Squares[move.EndingSquare + (Piece.IsWhite(OpponentColour) ? -8 : 8)] = Piece.Pawn | FriendlyColour;
-                break;
-
-            case MoveFlags.WhiteQueenCastling:
-                Squares[0] = Piece.Rook | Piece.White;
-                Squares[3] = Piece.None;
-                break;
-
-            case MoveFlags.WhiteKingCastling:
-                Squares[5] = Piece.None;
-                Squares[7] = Piece.Rook | Piece.White;
-                break;
-
-            case MoveFlags.BlackQueenCastling:
-                Squares[56] = Piece.Rook | Piece.Black;
-                Squares[59] = Piece.None;
-                break;
-
-            case MoveFlags.BlackKingCastling:
-                Squares[61] = Piece.None;
-                Squares[63] = Piece.Rook | Piece.Black;
-                break;
-        }
-
-        if (Moves.Count > 0)
-            Enpassant = Moves[^1].IsDoublePawnPush ? Moves[^1].StartingSquare + (Piece.IsWhite(ColourToMove) ? 8 : -8) : -1;
-        ColourToMove = OpponentColour;
-        Calculate();
-        return true;
+        return ((AttackBitboard >> squareIndex) & 1) == 1;
     }
 
-    private void Calculate()
+    private bool IsPinned(int squareIndex)
     {
-        /* Finding king squares */
-        for (int squareIndex = 0; squareIndex < 64; squareIndex++)
-            if (Squares[squareIndex] == (Piece.King | Piece.White))
-                Kings[0] = squareIndex;
-
-            else if (Squares[squareIndex] == (Piece.King | Piece.Black))
-                Kings[1] = squareIndex;
-
-        CalculateAttacks();
-        CalculatePins();
-        ValidateEnpassantSquare();
-        GenerateLegalMoves();
-        CalculateGameState();
+        return ((PinBitboard >> squareIndex) & 1) == 1;
     }
 
-    public bool IsAttacked(int squareIndex)
-    {
-        return Bitboard.Contains(AttackBitboard, squareIndex);
-    }
-
-    public bool IsPinned(int squareIndex)
-    {
-        return Pins.ContainsKey(squareIndex);
-    }
-
-    private void CalculateAttacks()
-    {
-        AttackingSquare = -1;
-        AttackBitboard = 0UL;
-        IsCheck = false;
-        IsDoubleCheck = false;
-        IsKnightCheck = false;
-        for (int squareIndex = 0; squareIndex < 64; squareIndex++)
-        {
-            if (Piece.IsColour(Squares[squareIndex], OpponentColour))
-            {
-                ulong bitboard = Bitboard.GetAttackBitboard(this, squareIndex);
-                if (Bitboard.Contains(bitboard, KingSquare))
-                {
-                    AttackingSquare = squareIndex;
-                    IsDoubleCheck = IsCheck;
-                    IsCheck = true;
-                    IsKnightCheck = Piece.IsType(Squares[squareIndex], Piece.Knight);
-                }
-                AttackBitboard |= bitboard;
-            }
-        }
-    }
-
-    private void CalculatePins()
-    {
-        Pins.Clear();
-        if (KingSquare > -1)
-        {
-            for (int directionIndex = 0; directionIndex < 8; directionIndex++)
-            {
-                int friendlyPiece = -1;
-                for (int i = 0; i < PrecomputedMoveData.Rays[KingSquare][directionIndex]; i++)
-                {
-                    int targetSquare = KingSquare + PrecomputedMoveData.DirectionsOffsets[directionIndex] * (i + 1);
-
-                    if (Piece.IsEmpty(Squares[targetSquare]))
-                        continue;
-
-                    if (friendlyPiece > 0)
-                    {
-                        if (Piece.IsColour(Squares[targetSquare], ColourToMove))
-                            break;
-
-                        if (!((directionIndex < 4) ? Piece.IsRookOrQueen(Squares[targetSquare]) : Piece.IsBishopOrQueen(Squares[targetSquare])))
-                            break;
-
-                        Pins.Add(friendlyPiece, directionIndex);
-                        break;
-                    }
-
-                    else
-                    {
-                        if (!IsAttacked(targetSquare))
-                            break;
-
-                        friendlyPiece = targetSquare;
-                    }
-                }
-            }
-        }
-    }
-
-    private void ValidateEnpassantSquare()
-    {
-        if (Enpassant == -1)
-            return;
-
-        int opponentPawnSquare = Enpassant + (Piece.IsWhite(OpponentColour) ? 8 : -8);
-        int file = opponentPawnSquare & 7;
-        int kingSquareFile = KingSquare & 7;
-
-        bool enPassant = false;
-
-        int pawnSquare = opponentPawnSquare - 1;
-        if (file > 0 && Squares[pawnSquare] == (Piece.Pawn | ColourToMove))
-            if (kingSquareFile != file)
-                enPassant = true;
-
-            else if (!IsKingAttackedAfterEnpassant(pawnSquare, opponentPawnSquare))
-                enPassant = true;
-
-        pawnSquare += 2;
-        if (file < 7 && Squares[pawnSquare] == (Piece.Pawn | ColourToMove))
-            if (kingSquareFile != file)
-                enPassant = true;
-
-            else if (!IsKingAttackedAfterEnpassant(pawnSquare, opponentPawnSquare))
-                enPassant = true;
-
-        Enpassant = enPassant ? Enpassant : -1;
-    }
-
-    private bool IsKingAttackedAfterEnpassant(int pawnSquare, int opponentPawnSquare)
-    {
-        bool kingAttacked = false;
-        Squares[opponentPawnSquare] = Piece.None;
-        Squares[Enpassant] = Squares[pawnSquare];
-        Squares[pawnSquare] = Piece.None;
-
-        if (Bitboard.Contains(Bitboard.GetAttackBitboard(this), KingSquare))
-            kingAttacked = true;
-
-        Squares[opponentPawnSquare] = Piece.Pawn | OpponentColour;
-        Squares[pawnSquare] = Squares[Enpassant];
-        Squares[Enpassant] = Piece.None;
-
-        return kingAttacked;
-    }
-
-    private void CalculateGameState()
-    {
-        if (LegalMoves.Length == 0)
-        {
-            if (IsCheck)
-                Flag = EndFlags.Checkmate;
-
-            else
-                Flag = EndFlags.Stalemate;
-        }
-    }
+    #endregion
 }

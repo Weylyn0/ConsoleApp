@@ -2,15 +2,13 @@
 
 public struct MoveFlags
 {
-    public const int None = 0;
-    public const int PromotionKnight = 1;
-    public const int PromotionBishop = 2;
-    public const int PromotionRook = 4;
-    public const int PromotionQueen = 8;
-    public const int DoublePawnPush = 16;
-    public const int EnpassantCapture = 32;
-    public const int WhiteQueenCastling = 64;
-    public const int WhiteKingCastling = 128;
-    public const int BlackQueenCastling = 256;
-    public const int BlackKingCastling = 512;
+    public const byte None = 0;
+    public const byte PromotionKnight = 1;
+    public const byte PromotionBishop = 2;
+    public const byte PromotionRook = 4;
+    public const byte PromotionQueen = 8;
+    public const byte DoublePawnPush = 16;
+    public const byte EnpassantCapture = 32;
+    public const byte QueensideCastling = 64;
+    public const byte KingsideCastling = 128;
 }
