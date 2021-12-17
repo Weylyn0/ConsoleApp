@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Chess;
+namespace OldChess;
 
 #region Objects
 
@@ -104,7 +104,7 @@ public class Board
                 for (int i = 0; i < Moves.Count; i++)
                 {
                     var move = Moves[^(i + 1)];
-                    if (!Piece.IsEmpty(move.TargetPiece) || Piece.IsType(move.Piece, Piece.Pawn))
+                    if (!Piece.IsEmpty(move.TargetPiece) || Piece.IsType(move.FriendlyPiece, Piece.Pawn))
                     {
                         return i;
                     }
@@ -145,6 +145,17 @@ public class Board
         get
         {
             return Piece.IsColour(ColourToMove, Piece.White) ? WhiteKing : BlackKing;
+        }
+    }
+
+    /// <summary>
+    /// Returns the opponent king location
+    /// </summary>
+    public int OpponentKingSquare
+    {
+        get
+        {
+            return Piece.IsColour(ColourToMove, Piece.White) ? BlackKing : WhiteKing;
         }
     }
 
@@ -211,7 +222,7 @@ public class Board
             {
                 if (MoveCount > 0)
                     if (Moves[^1].HasFlag(MoveFlags.DoublePawnPush))
-                        return Moves[^1].TargetIndex + (Piece.IsColour(Moves[^1].Piece, Piece.White) ? -8 : 8);
+                        return Moves[^1].TargetIndex + (Piece.IsColour(Moves[^1].FriendlyPiece, Piece.White) ? -8 : 8);
 
                 return -1;
             }
@@ -349,9 +360,12 @@ public class Board
                 moves.AddRange(CalculateLegalMoves(squareIndex));
             }
         }
-        
+
         if ((KingSquare > -1) && IsUnderAttack(KingSquare, ColourToMove, out List<int> attackers))
         {
+            if (Moves.Count > 0 && !(Moves[^1].Equals(null) || Moves[^1].HasSystemFlag()) && attackers.Contains(Moves[^1].TargetIndex))
+                Moves[^1].ChecksKing();
+
             if (attackers.Count > 1)
             {
                 moves.RemoveAll(move => !(move.Index == KingSquare));
@@ -509,18 +523,21 @@ public class Board
         if (!IsUnderAttack(squareIndex, ColourToMove, out _))
         {
             /* Checking for the king not moved */
-            if (Moves.FindAll(x => x.Piece == Squares[squareIndex]).Count == 0 || squareIndex == kingSquare)
+            if (Moves.FindAll(x => x.FriendlyPiece == Squares[squareIndex]).Count == 0 || squareIndex == kingSquare)
             {
-                var rookMoves = Moves.FindAll(x => x.Piece == (ColourToMove | Piece.Rook));
+                var rookMoves = Moves.FindAll(x => x.FriendlyPiece == (ColourToMove | Piece.Rook));
 
                 /* Checking for the queen rook not moved */
                 if (rookMoves.FindAll(x => x.Index == (kingSquare - 4)).Count == 0 && (Squares[kingSquare - 4] == (Piece.Rook | ColourToMove)))
                 {
-                    /* Checking for there is no attack between the king and the rook. */
+                    /* Checking for there is no friendly piece or attack between the king and the rook */
                     bool castlingFailed = false;
                     for (int i = -3; i < 0; i++)
                     {
-                        castlingFailed &= IsUnderAttack(squareIndex + i, ColourToMove, out _);
+                        castlingFailed |= IsUnderAttack(squareIndex + i, ColourToMove, out _);
+                        castlingFailed |= !Piece.IsEmpty(Squares[squareIndex + i]);
+                        if (castlingFailed)
+                            break;
                     }
                     if (!castlingFailed)
                         moves.Add(new Move(squareIndex, squareIndex - 2, MoveFlags.QueenCastling, Squares[squareIndex], Piece.None));
@@ -529,11 +546,14 @@ public class Board
                 /* Checking for the king rook not moved */
                 if (rookMoves.FindAll(x => x.Index == (kingSquare + 3)).Count == 0 && (Squares[kingSquare + 3] == (Piece.Rook | ColourToMove)))
                 {
-                    /* Checking for there is no attack between the king and the rook. */
+                    /* Checking for there is no friendly piece or attack between the king and the rook */
                     bool castlingFailed = false;
                     for (int i = 1; i < 2; i++)
                     {
-                        castlingFailed &= IsUnderAttack(squareIndex + i, ColourToMove, out _);
+                        castlingFailed |= IsUnderAttack(squareIndex + i, ColourToMove, out _);
+                        castlingFailed |= !Piece.IsEmpty(Squares[squareIndex + i]);
+                        if (castlingFailed)
+                            break;
                     }
                     if (!castlingFailed)
                         moves.Add(new Move(squareIndex, squareIndex + 2, MoveFlags.KingCastling, Squares[squareIndex], Piece.None));
@@ -794,6 +814,8 @@ public class Board
                                 if (Piece.IsType(Squares[targetSquare], Piece.Bishop))
                                     if (directionIndex >= 4)
                                         return true;
+
+                                break;
                             }
                         }
                     }
@@ -928,6 +950,30 @@ public class Board
             throw new InvalidUciStringException(uci);
 
         var move = CalculateLegalMoves().Find(move => move.Uci == uci.ToLower());
+        return MakeMove(move);
+    }
+
+    /// <summary>
+    /// Makes move with given <paramref name="san"/> string
+    /// </summary>
+    /// <param name="san"></param>
+    /// <returns><see cref="bool"/></returns>
+    public bool PushSan(string san)
+    {
+        var move = Move.ParseSan(this, san);
+        if (move.Equals(null))
+            return false;
+
+        return MakeMove(move);
+    }
+
+    /// <summary>
+    /// Makes move
+    /// </summary>
+    /// <param name="move"></param>
+    /// <returns><see cref="bool"/></returns>
+    public bool MakeMove(Move move)
+    {
         return MakeMove(move.Index, move.TargetIndex, move.Flag);
     }
 
@@ -967,29 +1013,35 @@ public class Board
 
                 if (legalMove.HasPromotionFlag())
                 {
-                    Squares[targetIndex] = Piece.Promote(legalMove.Piece, legalMove.GetPromotionType());
+                    Squares[targetIndex] = Piece.Promote(legalMove.FriendlyPiece, legalMove.GetPromotionType());
                 }
 
                 else if (legalMove.HasFlag(MoveFlags.EnpassantCapture))
                 {
                     Squares[targetIndex + (Piece.IsColour(ColourToMove, Piece.White) ? -8 : 8)] = Piece.None;
-                    Squares[targetIndex] = legalMove.Piece;
+                    Squares[targetIndex] = legalMove.FriendlyPiece;
                 }
 
                 else if (legalMove.HasCastlingFlag())
                 {
                     int rookSquare = legalMove.Index + (legalMove.HasFlag(MoveFlags.QueenCastling) ? -4 : 3);
-                    Squares[legalMove.TargetIndex] = legalMove.Piece;
+                    Squares[legalMove.TargetIndex] = legalMove.FriendlyPiece;
                     Squares[(legalMove.Index + legalMove.TargetIndex) / 2] = Squares[rookSquare];
                     Squares[rookSquare] = Piece.None;
                 }
 
                 else
                 {
-                    Squares[targetIndex] = legalMove.Piece;
+                    Squares[targetIndex] = legalMove.FriendlyPiece;
                 }
 
                 Moves.Add(legalMove);
+                if (IsUnderAttack(OpponentKingSquare, OpponentColour, out _))
+                {
+                    Takeback();
+                    return false;
+                }
+                
                 CheckForEnd();
                 return true;
             }
@@ -1013,28 +1065,28 @@ public class Board
 
         if (move.HasPromotionFlag())
         {
-            Squares[move.Index] = Piece.Pawn | Piece.Colour(move.Piece);
+            Squares[move.Index] = Piece.Pawn | Piece.Colour(move.FriendlyPiece);
             Squares[move.TargetIndex] = move.TargetPiece;
         }
 
         else if (move.HasFlag(MoveFlags.EnpassantCapture))
         {
-            Squares[move.Index] = move.Piece;
+            Squares[move.Index] = move.FriendlyPiece;
             Squares[move.TargetIndex] = Piece.None;
             Squares[move.TargetIndex + ((move.TargetIndex - move.Index) > 0 ? -8 : 8)] = move.TargetPiece;
         }
 
         else if (move.HasCastlingFlag())
         {
-            Squares[move.Index] = move.Piece;
+            Squares[move.Index] = move.FriendlyPiece;
             Squares[move.TargetIndex] = Piece.None;
             Squares[(move.Index + move.TargetIndex) / 2] = Piece.None;
-            Squares[(Piece.IsColour(move.Piece, Piece.White) ? 0 : 56) + (move.HasFlag(MoveFlags.QueenCastling) ? 0 : 7)] = Piece.Rook | Piece.Colour(move.Piece);
+            Squares[(Piece.IsColour(move.FriendlyPiece, Piece.White) ? 0 : 56) + (move.HasFlag(MoveFlags.QueenCastling) ? 0 : 7)] = Piece.Rook | Piece.Colour(move.FriendlyPiece);
         }
 
         else
         {
-            Squares[move.Index] = move.Piece;
+            Squares[move.Index] = move.FriendlyPiece;
             Squares[move.TargetIndex] = move.TargetPiece;
         }
 
@@ -1156,6 +1208,12 @@ public static class Piece
         return (piece & 0b11000) | type;
     }
 
+    public static int TypeFromSymbol(char symbol)
+    {
+        int piece = Symbols.IndexOf(char.ToUpper(symbol));
+        return (piece == -1) ? 0 : piece;
+    }
+
     /// <summary>
     /// Returns symbol from <paramref name="piece"/>
     /// </summary>
@@ -1174,9 +1232,7 @@ public static class Piece
     /// <returns><see cref="int"/></returns>
     public static int FromSymbol(char symbol)
     {
-        int piece = Symbols.IndexOf(char.ToUpper(symbol));
-        piece = piece == -1 ? 0 : piece;
-        return piece | (char.IsUpper(symbol) ? White : Black);
+        return TypeFromSymbol(symbol) | (char.IsUpper(symbol) ? White : Black);
     }
 }
 
@@ -1225,7 +1281,7 @@ public struct Move
     /// <summary>
     /// Move's piece
     /// </summary>
-    public int Piece
+    public int FriendlyPiece
     {
         get
         {
@@ -1273,17 +1329,17 @@ public struct Move
     {
         get
         {
-            string pieceSymbol = Chess.Piece.IsType(Piece, Chess.Piece.Pawn) ? string.Empty : Chess.Piece.PieceSymbol(Piece);
+            string pieceSymbol = Piece.IsType(FriendlyPiece, Piece.Pawn) ? string.Empty : Piece.PieceSymbol(FriendlyPiece).ToUpper();
             string promotion = string.Empty;
             for (int i = 0; i < 4; i++)
             {
                 if (HasFlag(1 << i))
                 {
-                    promotion = $"={Chess.Piece.Symbols[i + 3]}";
+                    promotion = $"={Piece.Symbols[i + 3]}";
                     break;
                 }
             }
-            return (pieceSymbol) + (Chess.Piece.IsEmpty(TargetPiece) ? string.Empty : "x") + ConvertUci(TargetIndex) + (Check ? "+" : string.Empty) + (promotion);
+            return (pieceSymbol) + (Piece.IsEmpty(TargetPiece) ? string.Empty : "x") + ConvertUci(TargetIndex) + (Check ? "+" : string.Empty) + (promotion);
         }
     }
 
@@ -1307,9 +1363,9 @@ public struct Move
     /// <param name="current">Current square index</param>
     /// <param name="target">Target square index</param>
     /// <param name="flag">Move flag</param>
-    public Move(int current, int target, int flag) : this(current, target, flag, Chess.Piece.None, Chess.Piece.None)
+    public Move(int current, int target, int flag) : this(current, target, flag, Piece.None, Piece.None)
     {
-        
+
     }
 
     /// <summary>
@@ -1450,6 +1506,80 @@ public struct Move
             throw new InvalidUciStringException(uci);
 
         return ((rank - 1) * 8 + file);
+    }
+
+    /// <summary>
+    /// Returns the legal move for <paramref name="board"/> from <paramref name="san"/>
+    /// </summary>
+    /// <param name="board"></param>
+    /// <param name="san"></param>
+    /// <returns><see cref="Move"/></returns>
+    /// <exception cref="InvalidSanStringException"></exception>
+    public static Move ParseSan(Board board, string san)
+    {
+        if (string.IsNullOrEmpty(san) || san.Length < 2)
+            throw new InvalidSanStringException(san);
+
+        try
+        {
+            var legalMoves = board.CalculateLegalMoves();
+            legalMoves.RemoveAll(move => !Piece.IsEmpty(move.TargetPiece) ^ san.Contains('x'));
+            var takes = san.Contains("x");
+            san = san.Replace("x", "");
+            san = san.Replace("+", "");
+            san = san.Replace("#", "");
+
+            if (Piece.Symbols[1..].Contains(san[0]))
+            {
+                var type = Piece.TypeFromSymbol(san[0]);
+                var targetSquare = ParseUci(san[1..3]);
+                legalMoves.RemoveAll(move => !Piece.IsType(move.FriendlyPiece, type) || !(move.TargetIndex == targetSquare));
+            }
+
+            else
+            {
+                legalMoves.RemoveAll(move => !Piece.IsType(move.FriendlyPiece, Piece.Pawn) && !Piece.IsType(move.FriendlyPiece, Piece.King));
+
+                if (san == "0-0")
+                {
+                    legalMoves.RemoveAll(move => !move.HasFlag(MoveFlags.KingCastling));
+                }
+
+                else if (san == "0-0-0")
+                {
+                    legalMoves.RemoveAll(move => !move.HasFlag(MoveFlags.QueenCastling));
+                }
+
+                else if (san.Length == 2)
+                {
+                    legalMoves.RemoveAll(move => !(move.TargetIndex == ParseUci(san)));
+                }
+
+                else if (san.Length == 3)
+                {
+                    var file = Files.IndexOf(san[0]);
+                    if (file == -1)
+                        throw new InvalidSanStringException(san);
+                    legalMoves.RemoveAll(move => !(move.TargetIndex == ParseUci(san[1..])) || !((move.Index % 8) == file));
+                }
+
+                if (Piece.Symbols[3..].Contains(san[^1]) && san[^2] == '=')
+                {
+                    var promotion = Piece.Symbols.IndexOf(san[^1]);
+                    legalMoves.RemoveAll(move => !Piece.IsType(move.GetPromotionType(), promotion));
+                }
+            }
+
+            if (legalMoves.Count == 1)
+                return legalMoves[0];
+
+            return default;
+        }
+
+        catch (InvalidUciStringException)
+        {
+            throw new InvalidSanStringException(san);
+        }
     }
 
     #endregion
@@ -1650,7 +1780,7 @@ public static class ForsythEdwardsNotation
         fen += $"\b {(Piece.IsColour(board.ColourToMove, Piece.White) ? 'w' : 'b')}";
 
         string castlings = string.Empty;
-        if (board.Moves.FindAll(x => x.Piece == (Piece.King | Piece.White)).Count == 0)
+        if (board.Moves.FindAll(x => x.FriendlyPiece == (Piece.King | Piece.White)).Count == 0)
         {
             if (board.Moves.FindAll(x => x.Index == 7).Count == 0)
                 castlings += "K";
@@ -1658,7 +1788,7 @@ public static class ForsythEdwardsNotation
             if (board.Moves.FindAll(x => x.Index == 0).Count == 0)
                 castlings += "Q";
         }
-        if (board.Moves.FindAll(x => x.Piece == (Piece.King | Piece.Black)).Count == 0)
+        if (board.Moves.FindAll(x => x.FriendlyPiece == (Piece.King | Piece.Black)).Count == 0)
         {
             if (board.Moves.FindAll(x => x.Index == 63).Count == 0)
                 castlings += "k";

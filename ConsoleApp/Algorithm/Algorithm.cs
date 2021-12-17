@@ -533,7 +533,7 @@ public class Recursion
     /// <exception cref="StackOverflowException"/>
     public static int Combination(int n, int k)
     {
-        if (k == 0 || k == n)
+        if (n == 0 || k == n)
             return 1;
 
         if (k < 0 || k > n)
@@ -789,35 +789,46 @@ public class Algebra
         return true;
     }
 
-    public static bool PointWithinPyramid(double[] X, double[] Y, double[] Z, double[] T, double[] point)
+    /// <summary>
+    /// Returns true if the <paramref name="point"/> is in the triangular pyramid created with <paramref name="A"/>, <paramref name="B"/>, <paramref name="C"/> and <paramref name="D"/>. Points are double array with length of 3
+    /// </summary>
+    /// <param name="A"></param>
+    /// <param name="B"></param>
+    /// <param name="C"></param>
+    /// <param name="D"></param>
+    /// <param name="point"></param>
+    /// <returns><see cref="bool"/></returns>
+    public static bool PointWithinTetrahedron(double[] A, double[] B, double[] C, double[] D, double[] point)
     {
-        var pyramid = new double[4][] { X, Y, Z, T };
-        bool b;
-
-        for (int i = 0; i < 4; i++)
+        static double[] CrossProduct(double[] X, double[] Y)
         {
-            for (int j = i + 1; j < 4; j++)
-            {
-                for (int k = j + 1; k < 4; k++)
-                {
-                    b = false;
-                    for (int u = 0; u < 3; u++)
-                    {
-                        for (int v = u + 1; v < 3; v++)
-                        {
-                            if (PointWithinTriangle(new double[] { pyramid[i][u], pyramid[i][v] }, new double[] { pyramid[j][u], pyramid[j][v] }, new double[] { pyramid[k][u], pyramid[k][v] }, new double[] { point[u], point[v] }))
-                            {
-                                b = true;
-                            }
-                        }
-                    }
-                    if (!b)
-                        return false;
-                }
-            }
+            return new double[] { X[1] * Y[2] - X[2] * Y[1], X[2] * Y[0] - X[0] * Y[2], X[0] * Y[1] - X[1] * Y[0] };
         }
 
-        return true;
+        static double DotProduct(double[] X, double[] Y)
+        {
+            return X[0] * Y[0] + X[1] * Y[1] + X[2] * Y[2];
+        }
+
+        static double[] Subtract(double[] X, double[] Y)
+        {
+            return new double[] { X[0] - Y[0], X[1] - Y[1], X[2] - Y[2] };
+        }
+
+        static int Sign(double x)
+        {
+            return ((x == 0) ? 0 : ((x > 0) ? 1 : -1));
+        }
+
+        static bool SameArea(double[] X, double[] Y, double[] Z, double[] T, double[] point)
+        {
+            var normal = CrossProduct(Subtract(Y, X), Subtract(Z, X));
+            var dotT = DotProduct(normal, Subtract(T, X));
+            var dotP = DotProduct(normal, Subtract(point, X));
+            return Sign(dotP) == Sign(dotT);
+        }
+
+        return SameArea(A, B, C, D, point) && SameArea(B, C, D, A, point) && SameArea(C, D, A, B, point) && SameArea(D, A, B, C, point);
     }
 
     /// <summary>

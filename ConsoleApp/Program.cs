@@ -1,238 +1,153 @@
 ﻿using System;
 using System.Collections.Generic;
-using Algorithm;
+using System.IO;
+using System.Linq;
 using Chess;
-using Games;
 
 namespace ConsoleApp;
 
 class Program
 {
-    static void PlayChess()
-    {
-        var board = Board.StartingChessPosition();
-        bool moved = true;
-        do
-        {
-            if (moved)
-                Console.WriteLine(board.AsString + Environment.NewLine);
-            string uci = Console.ReadLine().Trim();
-            if (uci == "resign")
-                break;
-            moved = board.PushUci(uci);
-        } while (board.EndFlag == EndFlags.None);
-        Console.WriteLine(board.EndFlag);
-        Console.WriteLine(board.Winner);
-    }
+    public const int A1 = 0;
+    public const int B1 = 1;
+    public const int C1 = 2;
+    public const int D1 = 3;
+    public const int E1 = 4;
+    public const int F1 = 5;
+    public const int G1 = 6;
+    public const int H1 = 7;
+    public const int A2 = 8;
+    public const int B2 = 9;
+    public const int C2 = 10;
+    public const int D2 = 11;
+    public const int E2 = 12;
+    public const int F2 = 13;
+    public const int G2 = 14;
+    public const int H2 = 15;
+    public const int A3 = 16;
+    public const int B3 = 17;
+    public const int C3 = 18;
+    public const int D3 = 19;
+    public const int E3 = 20;
+    public const int F3 = 21;
+    public const int G3 = 22;
+    public const int H3 = 23;
+    public const int A4 = 24;
+    public const int B4 = 25;
+    public const int C4 = 26;
+    public const int D4 = 27;
+    public const int E4 = 28;
+    public const int F4 = 29;
+    public const int G4 = 30;
+    public const int H4 = 31;
+    public const int A5 = 32;
+    public const int B5 = 33;
+    public const int C5 = 34;
+    public const int D5 = 35;
+    public const int E5 = 36;
+    public const int F5 = 37;
+    public const int G5 = 38;
+    public const int H5 = 39;
+    public const int A6 = 40;
+    public const int B6 = 41;
+    public const int C6 = 42;
+    public const int D6 = 43;
+    public const int E6 = 44;
+    public const int F6 = 45;
+    public const int G6 = 46;
+    public const int H6 = 47;
+    public const int A7 = 48;
+    public const int B7 = 49;
+    public const int C7 = 50;
+    public const int D7 = 51;
+    public const int E7 = 52;
+    public const int F7 = 53;
+    public const int G7 = 54;
+    public const int H7 = 55;
+    public const int A8 = 56;
+    public const int B8 = 57;
+    public const int C8 = 58;
+    public const int D8 = 59;
+    public const int E8 = 60;
+    public const int F8 = 61;
+    public const int G8 = 62;
+    public const int H8 = 63;
 
-    static void PlaySudoku()
-    {
-        var sudoku = new Sudoku(3);
-        bool filled = true;
-
-        do
-        {
-            if (filled)
-                Console.WriteLine(sudoku.Board);
-
-            string[] input = Console.ReadLine().Trim().Split(' ');
-            if (input.Length != 3)
-                continue;
-
-            if (!int.TryParse(input[0], out int row))
-                continue;
-
-            if (!int.TryParse(input[1], out int column))
-                continue;
-
-            if (!int.TryParse(input[2], out int value))
-                continue;
-
-            filled = sudoku.Fill(row, column, value);
-
-        } while (true);
-    }
-
-    static void StartTouchTyping(string text)
-    {
-        var index = 0;
-        var k = 0;
-        var t = 0;
-        DateTime start = DateTime.Now;
-        var colours = new ConsoleColor[text.Length];
-        for (int i = 0; i < colours.Length; i++)
-            colours[i] = ConsoleColor.White;
-
-        Console.WriteLine(text);
-        while (true)
-        {
-            var info = Console.ReadKey();
-
-            if (index == 0)
-                start = DateTime.Now;
-
-            if (char.ToLower(info.KeyChar) == char.ToLower(text[index]))
-            {
-                colours[index] = ConsoleColor.Green;
-                t++;
-            }
-
-            else
-            {
-                colours[index] = ConsoleColor.Red;
-            }
-
-            index++;
-            k++;
-
-            Console.Clear();
-            for (int i = 0; i < text.Length; i++)
-            {
-                Console.ForegroundColor = colours[i];
-                Console.Write(text[i].ToString());
-                Console.ResetColor();
-            }
-            Console.WriteLine();
-
-            if (index == text.Length)
-                break;
-        }
-
-        Console.WriteLine($" -WPM: {(int)((k / 5) / (DateTime.Now - start).TotalMinutes)}");
-        Console.WriteLine($" -Accuracy Percent: {((t / (double)text.Length) * 100):0.00}");
-    }
+    static readonly string startingFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    static readonly string fen = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
+    static readonly string fen2 = "8/1p6/8/P2p4/2P2p2/8/4P3/8 w - - 0 1";
+    static readonly Board board = Board.FromFen(startingFen);
+    const int d = 6;
+    static int lastPos = 0;
+    static Move lastMove = default;
 
     static void Main(string[] args)
     {
-        Console.WriteLine("Impending doom..."); 
-    }
-}
+        /* Chess Programming: https://www.chessprogramming.org/Main_Page
+         *                    https://www.youtube.com/channel/UCB9-prLkPwgvlKKqDgXhsMQ/playlists
+         *                    https://www.youtube.com/watch?v=g1b80b8DGJM&list=PLmN0neTso3JzhJP35hwPHJi4FZgw5Ior0&index=6
+         * 
+         *  AI:
+         *      Quiescence Search: https://www.chessprogramming.org/Quiescence_Search
+         *      
+         *  https://www.chessprogramming.org/Perft_Results
+         *  https://lichess.org/editor?fen=8%2F8%2F8%2F3N4%2F8%2F8%2F8%2F8+w+-+-+0+1
+         */
 
-public class Questions
-{
-    static string GridWithForce(int[][] grid)
-    {
-        static int[] Find(int[][] array, int value)
-        {
-            for (int i = 0; i < array.Length; i++)
-            {
-                for (int j = 0; j < array[i].Length; j++)
-                {
-                    if (array[i][j] == value)
-                        return new int[] { i, j };
-                }
-            }
-
-            return new int[] { -1, -1 };
-        }
-
-        static bool ZeroBetwenColumn(bool[][] painted, int column1, int column2, int row)
-        {
-            for (int k = Math.Min(column1, column2); k <= Math.Max(column1, column2); k++)
-            {
-                if (!painted[row][k])
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        static bool ZeroBetwenRow(bool[][] painted, int row1, int row2, int column)
-        {
-            for (int k = Math.Min(row1, row2); k <= Math.Max(row1, row2); k++)
-            {
-                if (!painted[k][column])
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        /* Checking grid is a valid item for this function */
-        if (grid.Length == 0)
-            return string.Empty;
-
-        for (int i = 0; i < grid.Length; i++)
-            if (grid[i].Length == 0 || grid[i].Length != grid[0].Length)
-                return string.Empty;
-
-        var check = new List<int>();
-        for (int i = 0; i < check.Count; i++)
-            check.Add(i + 1);
-
-        for (int i = 0; i < grid.Length; i++)
-            for (int j = 0; j < grid[i].Length; j++)
-                check.Remove(grid[i][j]);
-
-        if (check.Count > 0)
-            return string.Empty;
-
-        /* Defining Variables */
-        bool[][] painted = new bool[grid.Length][];
-        for (int i = 0; i < grid.Length; i++)
-            painted[i] = new bool[grid[i].Length];
-
-        int turn = 1;
-        string result = string.Empty;
-
-        /* Executing Algortihm */
-        while (turn <= grid.Length * grid[0].Length)
-        {
-            var c = Find(grid, turn);
-            painted[c[0]][c[1]] = true;
-            bool failed = false;
-
-            for (int i = 1; i <= turn; i++)
-            {
-                for (int j = i + 1; j <= turn; j++)
-                {
-                    var iCor = Find(grid, i);
-                    var jCor = Find(grid, j);
-
-                    if ((ZeroBetwenColumn(painted, iCor[1], jCor[1], iCor[0]) || ZeroBetwenRow(painted, iCor[0], jCor[0], jCor[1])) && (ZeroBetwenColumn(painted, iCor[1], jCor[1], jCor[0]) || ZeroBetwenRow(painted, iCor[0], jCor[0], iCor[1])))
-                        failed = true;
-                }
-
-                if (failed)
-                    break;
-            }
-
-            result += failed ? 0 : 1;
-            turn++;
-        }
-
-        return result;
+        PerformanceTest();
     }
 
-    static int Marble(int minGrandchild, int maxGrandchild, int minMarble, int maxMarble, int pocketSize)
+    public static void PerformanceTest()
     {
-        int minSadGrandchild = -1;
-        int currentMarble = 0;
+        var stopwatch = new System.Diagnostics.Stopwatch();
+        stopwatch.Start();
 
-        for (int marble = minMarble; marble <= maxMarble; marble++)
+        Console.WriteLine($"Calculated in: {stopwatch.ElapsedMilliseconds} MS");
+    }
+
+    private static void MoveTest()
+    {
+        Console.WriteLine($"Legal Move Count: {board.LegalMoves.Length}\n");
+        foreach (var item in board.LegalMoves)
         {
-            int sadGrandchild = 0;
-            for (int grandchild = minGrandchild; grandchild <= maxGrandchild; grandchild++)
-            {
-                int surplus = (marble % grandchild);
-                if (surplus > pocketSize)
-                {
-                    sadGrandchild += (grandchild - surplus);
-                    if (sadGrandchild > minSadGrandchild)
-                    {
-                        break;
-                    }
-                }
-            }
-            if (minSadGrandchild == -1 || sadGrandchild <= minSadGrandchild)
-            {
-                minSadGrandchild = sadGrandchild;
-                currentMarble = marble;
-            }
+            Console.WriteLine($" {item.Uci}");
         }
+    }
 
-        return currentMarble;
+    static int Perft(int depth = d)
+    {
+        if (depth == 0)
+            return 1;
+
+        int positions = 0;
+        //var moves = board.GenerateLegalMoves();
+        foreach (var move in board.LegalMoves)
+        {
+            board.MakeMove(move);
+            positions += Perft(depth - 1);
+            if (depth == d)
+            {
+                Console.WriteLine($"{move.Uci}: {positions - lastPos}");
+                lastPos = positions;
+                lastMove = move;
+            }
+            board.Takeback();
+        }
+        return positions;
+    }
+
+    static int PerftTest(int depth)
+    {
+        if (depth == 0)
+            return 1;
+
+        int positions = 0;
+        foreach (var move in board.LegalMoves)
+        {
+            board.MakeMove(move);
+            positions += PerftTest(depth - 1);
+            board.Takeback();
+        }
+        return positions;
     }
 }
