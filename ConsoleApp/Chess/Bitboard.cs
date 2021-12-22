@@ -1,203 +1,71 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Numerics;
 
 namespace Chess;
 
 public static class Bitboard
 {
-    public static string BitboardToString(ulong bitboard)
+    private static readonly ulong[] Bits = {
+        1UL, 2UL, 4UL, 8UL, 16UL, 32UL, 64UL, 128UL,
+        256UL, 512UL, 1024UL, 2048UL, 4096UL, 8192UL, 16384UL, 32768UL,
+        65536UL, 131072UL, 262144UL, 524288UL, 1048576UL, 2097152UL, 4194304UL, 8388608UL,
+        16777216UL, 33554432UL, 67108864UL, 134217728UL, 268435456UL, 536870912UL, 1073741824UL, 2147483648UL,
+        4294967296UL, 8589934592UL, 17179869184UL, 34359738368UL, 68719476736UL, 137438953472UL, 274877906944UL, 549755813888UL,
+        1099511627776UL, 2199023255552UL, 4398046511104UL, 8796093022208UL, 17592186044416UL, 35184372088832UL, 70368744177664UL, 140737488355328UL,
+        281474976710656UL, 562949953421312UL, 1125899906842624UL, 2251799813685248UL, 4503599627370496UL, 9007199254740992UL, 18014398509481984UL, 36028797018963968UL,
+        72057594037927936UL, 144115188075855872UL, 288230376151711744UL, 576460752303423488UL, 1152921504606846976UL, 2305843009213693952UL, 4611686018427387904UL, 9223372036854775808UL
+    };
+
+    public static int BitScanForward(ulong bitboard)
     {
-        string map = "";
+        return (bitboard == 0UL) ? -1 : BitOperations.TrailingZeroCount(bitboard);
+    }
+
+    public static int BitScanReverse(ulong bitboard)
+    {
+        return (bitboard == 0UL) ? -1 : 63 - BitOperations.LeadingZeroCount(bitboard);
+    }
+
+    public static void Set(ref ulong bitboard, int index)
+    {
+        bitboard |= Bits[index];
+    }
+
+    public static void Toggle(ref ulong bitboard, int index)
+    {
+        bitboard ^= Bits[index];
+    }
+
+    public static void Reset(ref ulong bitboard, int index)
+    {
+        bitboard &= ~Bits[index];
+    }
+
+    public static IEnumerable<int> Enumerate(ulong bitboard)
+    {
+        while (bitboard > 0)
+        {
+            int position = BitScanForward(bitboard);
+            bitboard &= bitboard - 1;
+            yield return position;
+        }
+    }
+
+    public static void WriteBitboard(ulong bitboard)
+    {
+        string text = "\n";
         for (int rank = 0; rank < 8; rank++)
         {
+            text += $"  {8 - rank} ";
             for (int file = 0; file < 8; file++)
             {
-                map += (bitboard >> (7 - rank) * 8 + file) & 1;
+                text += $" {(bitboard >> ((7 - rank) << 3 | file)) & 1}";
             }
-            map += "\n";
+            text += "\n";
         }
-        return map;
-    }
-
-    public static ulong GetAttackBitboard(Board board)
-    {
-        ulong bitboard = 0UL;
-        for (int squareIndex = 0; squareIndex < 64; squareIndex++)
-            if (Piece.IsColour(board[squareIndex], board.OpponentColour))
-                bitboard |= GetAttackBitboard(board, squareIndex);
-        
-        return bitboard;
-    }
-
-    public static ulong GetAttackBitboard(Board board, int squareIndex)
-    {
-        ulong bitboard = 0UL;
-        int piece = board[squareIndex];
-        
-        if (Piece.IsEmpty(piece))
-            return bitboard;
-
-        switch (Piece.Type(piece))
-        {
-            case Piece.Pawn:
-                bitboard |= PawnAttackBitboard(board, squareIndex);
-                break;
-
-            case Piece.King:
-                bitboard |= KingAttackBitboard(board, squareIndex);
-                break;
-
-            case Piece.Knight:
-                bitboard |= KnightAttackBitboard(board, squareIndex);
-                break;
-
-            case Piece.Bishop:
-                bitboard |= SlidingAttackBitboard(board, squareIndex, 4, 8);
-                break;
-
-            case Piece.Rook:
-                bitboard |= SlidingAttackBitboard(board, squareIndex, 0, 4);
-                break;
-
-            case Piece.Queen:
-                bitboard |= SlidingAttackBitboard(board, squareIndex, 0, 8);
-                break;
-
-            default:
-                break;
-        }
-        return bitboard;
-    }
-
-    public static ulong PawnAttackBitboard(Board board, int squareIndex)
-    {
-        ulong bitboard = 0UL;
-        int file = squareIndex & 7;
-        int forward = PrecomputedMoveData.DirectionsOffsets[Piece.Colour(board[squareIndex]) >> 4];
-        if (file > 0)
-        {
-            bitboard |= 1UL << (squareIndex - 1 + forward);
-        }
-        if (file < 7)
-        {
-            bitboard |= 1UL << squareIndex + 1 + forward;
-        }
-        return bitboard;
-    }
-
-    public static ulong KingAttackBitboard(Board board, int squareIndex)
-    {
-        ulong bitboard = 0UL;
-        for (int directionIndex = 0; directionIndex < 8; directionIndex++)
-        {
-            if (PrecomputedMoveData.Rays[squareIndex][directionIndex] == 0)
-                continue;
-
-            int targetSquare = squareIndex + PrecomputedMoveData.DirectionsOffsets[directionIndex];
-            bitboard |= 1UL << targetSquare;
-        }
-        return bitboard;
-    }
-
-    public static ulong KnightAttackBitboard(Board board, int squareIndex)
-    {
-        ulong bitboard = 0UL;
-        for (int rank = -2; rank <= 2; rank++)
-        {
-            for (int file = -2; file <= 2; file++)
-            {
-                if (Math.Abs(rank) == Math.Abs(file) || rank == 0 || file == 0)
-                    continue;
-
-                int newRank = (squareIndex >> 3) + rank;
-                int newFile = (squareIndex & 7) + file;
-
-                if ((newRank & 8) != 0 || (newFile & 8) != 0)
-                    continue;
-
-                bitboard |= 1UL << (newRank * 8 + newFile);
-            }
-        }
-        return bitboard;
-    }
-
-    public static ulong SlidingAttackBitboard(Board board, int squareIndex, int startDirectionIndex, int endDirectionIndex, bool breakOnPiece = true)
-    {
-        ulong bitboard = 0UL;
-        for (int directionIndex = startDirectionIndex; directionIndex < endDirectionIndex; directionIndex++)
-        {
-            for (int n = 0; n < PrecomputedMoveData.Rays[squareIndex][directionIndex]; n++)
-            {
-                int targetSquare = squareIndex + PrecomputedMoveData.DirectionsOffsets[directionIndex] * (n + 1);
-                bitboard |= 1UL << targetSquare;
-
-                if (breakOnPiece && !Piece.IsEmpty(board[targetSquare]))
-                    break;
-            }
-        }
-        return bitboard;
-    }
-
-    public static ulong RayBitboard(int startingSquare, int endingSquare, bool beyond)
-    {
-        ulong bitboard = 0UL;
-        int directionIndex = PrecomputedMoveData.Lookup(startingSquare, endingSquare);
-        if (beyond)
-        {
-            for (int n = 0; n <= PrecomputedMoveData.Rays[endingSquare][directionIndex]; n++)
-            {
-                int squareIndex = endingSquare + PrecomputedMoveData.DirectionsOffsets[directionIndex] * (n + 1);
-                bitboard |= 1UL << squareIndex;
-            }
-        }
-        else
-        {
-            for (int n = 0; n <= PrecomputedMoveData.Rays[startingSquare][directionIndex]; n++)
-            {
-                int squareIndex = startingSquare + PrecomputedMoveData.DirectionsOffsets[directionIndex] * n;
-                if (squareIndex == endingSquare)
-                    break;
-
-                bitboard |= 1UL << squareIndex;
-            }
-        }
-        
-        return bitboard;
-    }
-
-    public static ulong GetPinBitboard(Board board)
-    {
-        ulong bitboard = 0UL;
-        for (int directionIndex = 0; directionIndex < 8; directionIndex++)
-        {
-            int pinnedPiece = -1;
-            for (int n = 0; n < PrecomputedMoveData.Rays[board.KingSquare][directionIndex]; n++)
-            {
-                int targetSquare = board.KingSquare + PrecomputedMoveData.DirectionsOffsets[directionIndex] * (n + 1);
-                int targetPiece = board[targetSquare];
-
-                if (Piece.IsEmpty(targetPiece))
-                    continue;
-
-                if (pinnedPiece == -1)
-                {
-                    if (Piece.IsColour(targetPiece, board.OpponentColour))
-                        break;
-
-                    pinnedPiece = targetSquare;
-                }
-
-                else
-                {
-                    if (Piece.IsColour(targetPiece, board.FriendlyColour))
-                        break;
-
-                    if (!(directionIndex < 4 ? Piece.IsRookOrQueen(targetPiece) : Piece.IsBishopOrQueen(targetPiece)))
-                        break;
-
-                    bitboard |= 1UL << pinnedPiece;
-                }
-            }
-        }
-        return bitboard;
+        text += "\n     A B C D E F G H\n";
+        text += $"\n  > Bitboard: {bitboard}\n";
+        Console.WriteLine(text);
     }
 }
