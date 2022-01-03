@@ -24,7 +24,7 @@ public static class Bitboard
 
     public static int BitScanReverse(ulong bitboard)
     {
-        return (bitboard == 0UL) ? -1 : 63 - BitOperations.LeadingZeroCount(bitboard);
+        return (bitboard == 0UL) ? -1 : BitOperations.LeadingZeroCount(bitboard) ^ 63;
     }
 
     public static void Set(ref ulong bitboard, int index)

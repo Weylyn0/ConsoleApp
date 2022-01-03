@@ -44,7 +44,7 @@ public class TicTacToe
             string board = "";
             for (int i = 0; i < 3; i++)
                 for (int j = 0; j < 3; j++)
-                    board += ((this[i * 3 + j] == 1) ? "X" : ((this[i * 3 + j] == 2) ? "O" : ".")) + ((j == 2 && i != 2) ? "\n" : "");
+                    board += ((this[i * 3 + j] == 1) ? "X " : ((this[i * 3 + j] == 2) ? "O " : ". ")) + ((j == 2 && i != 2) ? "\n" : "");
 
             return board;
         }
