@@ -90,10 +90,7 @@ public class Bitwise
     /// <exception cref="StackOverflowException"/>
     public static int Add(int x, int y)
     {
-        if (y == 0)
-            return x;
-
-        return Add(x ^ y, (x & y) << 1);
+        return (y == 0) ? x : Add(x ^ y, (x & y) << 1);
     }
 
     /// <summary>
@@ -105,10 +102,7 @@ public class Bitwise
     /// <exception cref="StackOverflowException"/>
     public static int Subtract(int x, int y)
     {
-        if (y == 0)
-            return x;
-
-        return Subtract(x ^ y, (~x & y) << 1);
+        return (y == 0) ? x : Subtract(x ^ y, (~x & y) << 1);
     }
 
     /// <summary>
@@ -120,10 +114,7 @@ public class Bitwise
     /// <exception cref="StackOverflowException"/>
     public static int Product(int x, int y)
     {
-        if (y > 0)
-            return (((y & 1) == 1) ? x : 0) + Product(x << 1, y >> 1);
-
-        return 0;
+        return (y == 0) ? 0 : (((y & 1) == 1) ? x : 0) + Product(x << 1, y >> 1);
     }
 
     /// <summary>

@@ -340,7 +340,7 @@ public class Recursion
     /// <exception cref="StackOverflowException"/>
     public static int Combination(int n, int k)
     {
-        if (n == 0 || k == n)
+        if (k == 0 || k == n)
             return 1;
 
         if (k < 0 || k > n)
