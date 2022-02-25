@@ -264,4 +264,137 @@ public class Olympics
         return length;
     }
 
+    static int MrStaple(string punch, int k)
+    {
+        static int Ask(string punch, int index)
+        {
+            if (index < 1 || index > punch.Length)
+                return 0;
+
+            int opening = 0;
+            int closing = 0;
+            for (int i = 0; i < index; i++)
+                if (punch[i] == '(')
+                    opening++;
+                else if (punch[i] == ')')
+                    closing++;
+
+            return (opening < closing) ? 0 : 1;
+        }
+
+        int zero = punch.Length;
+        int one = 0;
+        int value = (zero + one) / 2;
+        for (int i = 0; i < k; i++)
+        {
+            int result = Ask(punch, value);
+            if (result == 0)
+            {
+                zero = value;
+            }
+
+            else if (result == 1)
+            {
+                one = value;
+            }
+
+            if (zero < one)
+            {
+                if ((one - zero) < 3 && (value & 1) == 0)
+                    return value;
+
+                value = (one + zero) / 2;
+            }
+
+            else
+            {
+                value += value / 2 * ((result == 1) ? -1 : 1);
+            }
+        }
+        return -1;
+    }
+
+    static int Q42(int N, int L, int R, int[] values)
+    {
+        if (N < 1 || values.Length != N)
+            return -1;
+
+        if (L == 42 && R == 42)
+            return N * (N + 1) / 2;
+
+        int goodCount = 0;
+
+        for (int i = 0; i < N; i++)
+        {
+            for (int j = i; j < N; j++)
+            {
+                int product = 1;
+                for (int k = i; k <= j; k++)
+                    product *= values[k];
+
+                if ((L <= product && product <= R) || (L == 42 && product <= R) || (L <= product && R == 42))
+                    goodCount++;
+            }
+        }
+
+        return goodCount;
+    }
+
+    static int WhiteBunny(params int[] values)
+    {
+        int left = 0;
+        int right = values.Length - 1;
+        int min = values[0];
+        for (int i = 1; i < values.Length; i++) if (values[i] < min) min = values[i];
+        int eatenApples = min * values.Length;
+        for (int i = 0; i < values.Length - 1; i++)
+        {
+            if (values[left] < values[right]) left++;
+            else right--;
+            min = values[left];
+            for (int j = left + 1; j <= right; j++) if (values[j] < min) min = values[j];
+            int apples = min * (right - left + 1);
+            if (apples > eatenApples) eatenApples = apples;
+        }
+        return eatenApples;
+    }
+
+    static int DeterministGameMachine(int target, params int[][] capsules)
+    {
+        if (target < 0 || target >= capsules.Length)
+            return -1;
+
+        for (int i = 0; i < capsules.Length; i++)
+            if (capsules[i].Length != 4)
+                return -1;
+
+        int coins = 1;
+        int current = 0;
+        while (true)
+        {
+            if (current == target)
+                return coins;
+
+            if ((capsules[current][0] == -1 && capsules[current][2] == -1) || (capsules[current][1] == 0 && capsules[current][3] == 0))
+            {
+                if (current == 0)
+                    return -1;
+
+                current = 0;
+                coins++;
+            }
+
+            else if (capsules[current][0] == -1 || capsules[current][1] < capsules[current][3])
+            {
+                capsules[current][3]--;
+                current = capsules[current][2];
+            }
+
+            else
+            {
+                capsules[current][1]--;
+                current = capsules[current][0];
+            }
+        }
+    }
 }

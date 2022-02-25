@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Games;
 
@@ -12,7 +11,7 @@ public class Sudoku
     /// <summary>
     /// 9x9 integer array for storing cell values
     /// </summary>
-    private int[,] _cells { get; set; }
+    private int[,] Cells { get; set; }
 
     /// <summary>
     /// Returns the value of cell for specified row and column
@@ -24,7 +23,7 @@ public class Sudoku
     {
         get
         {
-            return _cells[r, c];
+            return Cells[r, c];
         }
     }
 
@@ -85,7 +84,7 @@ public class Sudoku
     /// </summary>
     public Sudoku()
     {
-        _cells = new int[9, 9];
+        Cells = new int[9, 9];
     }
 
     /// <summary>
@@ -99,7 +98,7 @@ public class Sudoku
 
         for (int row = 0; row < 9; row++)
             for (int column = 0; column < 9; column++)
-                _cells[row, column] = (row * 3 + row / 3 + column) % 9 + 1;
+                Cells[row, column] = (row * 3 + row / 3 + column) % 9 + 1;
 
         int row1, row2, column1, column2, value1, value2;
         row1 = row2 = column1 = column2 = 0;
@@ -129,19 +128,19 @@ public class Sudoku
                                 column2 = squareColumn + column;
                             }
                         }
-                        _cells[row1, column1] = value2;
-                        _cells[row2, column2] = value1;
+                        Cells[row1, column1] = value2;
+                        Cells[row2, column2] = value1;
                     }
                 }
             }
         }
 
-        for (int i = 0; i < difficulty * 15; i++)
-        {
-            int row = rd.Next(0, 9);
-            int column = rd.Next(0, 9);
-            _cells[row, column] = 0;
-        }
+        //for (int i = 0; i < difficulty * 15; i++)
+        //{
+        //    int row = rd.Next(0, 9);
+        //    int column = rd.Next(0, 9);
+        //    _cells[row, column] = 0;
+        //}
     }
 
     /// <summary>
@@ -211,7 +210,7 @@ public class Sudoku
         if (!Fillable(row, column, value))
             return false;
 
-        _cells[row, column] = value;
+        Cells[row, column] = value;
         return true;
     }
 
@@ -224,7 +223,7 @@ public class Sudoku
             {
                 var fillables = Fillables(row, column);
                 if (fillables.Count == 1)
-                    _cells[row, column] = fillables[0];
+                    Cells[row, column] = fillables[0];
             }
         }
 

@@ -1,27 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace Algorithm;
 
-/// <summary>
-/// A* Path Finding Algorithm
-/// </summary>
-public class PathFinding
+public class AStarPathFinding
 {
     private readonly int Width;
     private readonly int Height;
     private readonly Node[,] Nodes;
     private readonly List<Node> OpenNodes;
     private readonly HashSet<Node> ClosedNodes;
+    private readonly Stopwatch Stopwatch;
 
     private bool Found;
     private Node StartNode;
     private Node EndNode;
 
-    public PathFinding(params string[] rows)
+    public AStarPathFinding(params string[] rows)
     {
         if (rows.Length == 0)
             throw new ArgumentException($"{nameof(rows)} must contain at least 1 row");
@@ -40,6 +36,7 @@ public class PathFinding
         Nodes = new Node[Width, Height];
         OpenNodes = new List<Node>();
         ClosedNodes = new HashSet<Node>();
+        Stopwatch = new Stopwatch();
 
         Found = false;
         StartNode = null;
@@ -68,6 +65,8 @@ public class PathFinding
         if (startY < 0 || startY > Height - 1 || endY < 0 || endY > Height - 1)
             return;
 
+        Stopwatch.Restart();
+
         StartNode = Nodes[startX, startY];
         EndNode = Nodes[endX, endY];
 
@@ -85,6 +84,7 @@ public class PathFinding
 
             if (currentNode == EndNode)
             {
+                Stopwatch.Stop();
                 Found = true;
                 return;
             }
@@ -122,6 +122,7 @@ public class PathFinding
                 }
             }
         }
+        Stopwatch.Reset();
     }
 
     public string GetPath()
@@ -138,7 +139,7 @@ public class PathFinding
             node = node.Parent;
             move++;
         }
-        path = $"[ {StartNode.X}, {StartNode.Y} ] START\n{path}\n\n  > {move} Moves";
+        path = $"[ {StartNode.X}, {StartNode.Y} ] START\n{path}\n\n  > {move} Moves\n  > Calculated in {Stopwatch.ElapsedMilliseconds} MS ({Stopwatch.ElapsedTicks} Ticks)";
         return path;
     }
 
