@@ -1,14 +1,14 @@
 ﻿namespace Algorithm.Sorting;
 
-public class MergeSort
+public static class MergeSort
 {
     /// <summary>
     /// Sorst <paramref name="values"/> using Merge Sort algorithm in ascending or descending order depends on <paramref name="descending"/>. Time complexity of this algorithm is log-linear O(nlog(n))
     /// </summary>
     /// <param name="values"></param>
-    public static void Sort(int[] values, bool descending)
+    public static void Sort(int[] values, bool descending = false)
     {
-        Sort(values, descending);
+        Sort(values, 0, values.Length - 1, descending);
     }
 
     private static void Sort(int[] values, int left, int right, bool descending)
@@ -45,7 +45,7 @@ public class MergeSort
 
         while (l < leftSubArray.Length && r < rightSubArray.Length)
         {
-            if (descending ? leftSubArray[l] > rightSubArray[r] : leftSubArray[l] < rightSubArray[r])
+            if (descending != leftSubArray[l] < rightSubArray[r])
             {
                 values[k] = leftSubArray[l];
                 l++;
@@ -60,7 +60,7 @@ public class MergeSort
             k++;
         }
 
-        while (l < rightSubArray.Length)
+        while (l < leftSubArray.Length)
         {
             values[k] = leftSubArray[l];
             l++;

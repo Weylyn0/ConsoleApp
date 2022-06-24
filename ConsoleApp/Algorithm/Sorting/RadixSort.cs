@@ -1,6 +1,6 @@
 ﻿namespace Algorithm.Sorting;
 
-public class RadixSort
+public static class RadixSort
 {
     /// <summary>
     /// Sorts <paramref name="values"/> using Radix Sort algorithm in ascending or descending order depends on <paramref name="descending"/>. Time complexity of this algorithm is linear O(n + k) where k is the maximum element in the array
@@ -26,7 +26,7 @@ public class RadixSort
                 {
                     int f = (values[i] / k) % 10;
                     int s = (values[j] / k) % 10;
-                    if (descending ? f < s : f > s)
+                    if (descending != f > s)
                     {
                         values[i] ^= values[j];
                         values[j] ^= values[i];

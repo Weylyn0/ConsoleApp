@@ -1,6 +1,6 @@
 ﻿namespace Algorithm.Sorting;
 
-public class CountingSort
+public static class CountingSort
 {
     /// <summary>
     /// Sorts <paramref name="values"/> using Counting Sort algorithm in ascending or descending order depends on <paramref name="descending"/>. Time complexity of this algorithm is linear O(n + k) where k is the maximum element in the array

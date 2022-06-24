@@ -1,6 +1,6 @@
 ﻿namespace Algorithm.Sorting;
 
-public class BubbleSort
+public static class BubbleSort
 {
     /// <summary>
     /// Sorts <paramref name="values"/> using Bubble Sort algorithm in ascending or descending order depends on <paramref name="descending"/>. Time complexity of this algorithm is quadratic O(n^2)
@@ -13,7 +13,7 @@ public class BubbleSort
         {
             for (int j = (i + 1); j < values.Length; j++)
             {
-                if (descending ? values[i] < values[j] : values[i] > values[j])
+                if (descending != values[i] > values[j])
                 {
                     values[i] ^= values[j];
                     values[j] ^= values[i];

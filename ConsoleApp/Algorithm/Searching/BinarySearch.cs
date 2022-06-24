@@ -1,6 +1,6 @@
 ﻿namespace Algorithm.Searching;
 
-public class BinarySearch
+public static class BinarySearch
 {
     /// <summary>
     /// Searchs <paramref name="value"/> in <paramref name="values"/> using Binary Search algorithm. Time complexity of this algorithm is logarithmic O(log(n))

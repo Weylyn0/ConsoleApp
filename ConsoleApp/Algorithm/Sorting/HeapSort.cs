@@ -1,6 +1,6 @@
 ﻿namespace Algorithm.Sorting;
 
-public class HeapSort
+public static class HeapSort
 {
     /// <summary>
     /// Sorts <paramref name="values"/> using Heap Sort algorithm in ascending or descending order depends on <paramref name="descending"/>. Time complexity of this algorithm is log-linear O(nlog(n))
@@ -29,12 +29,12 @@ public class HeapSort
         int left = 2 * root + 1;
         int right = 2 * root + 2;
 
-        if (left < last && (descending ? values[index] > values[left] : values[index] < values[left]))
+        if (left < last && (descending != values[index] < values[left]))
         {
             index = left;
         }
 
-        if (right < last && (descending ? values[index] > values[right] : values[index] < values[right]))
+        if (right < last && (descending != values[index] < values[right]))
         {
             index = right;
         }

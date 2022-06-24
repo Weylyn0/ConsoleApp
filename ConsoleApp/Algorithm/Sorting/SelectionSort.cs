@@ -1,6 +1,6 @@
 ﻿namespace Algorithm.Sorting;
 
-public class SelectionSort
+public static class SelectionSort
 {
     /// <summary>
     /// Sorts <paramref name="values"/> using Selection Sort algorithm in ascending or descending order depends on <paramref name="descending"/>. Time complexity of this algorithm is quadratic O(n^2)
@@ -15,7 +15,7 @@ public class SelectionSort
 
             for (int j = (i + 1); j < values.Length; j++)
             {
-                if (descending ? values[j] > values[index] : values[j] < values[index])
+                if (descending != values[j] < values[index])
                 {
                     index = j;
                 }

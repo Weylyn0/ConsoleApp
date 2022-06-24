@@ -1,6 +1,6 @@
 ﻿namespace Algorithm.Searching;
 
-public class JumpSearch
+public static class JumpSearch
 {
     /// <summary>
     /// Searchs <paramref name="value"/> in <paramref name="values"/> using Jump Search algorithm. Time complexity of this algorithm is square root O(√(n))
